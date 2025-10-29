@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Healthcare Design System - Professional & Trustworthy */
+@layer base {
+  :root {
+    /* Medical Blue Theme - Professional Healthcare Colors */
+    --background: 0 0% 100%;
+    --foreground: 220 15% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 20%;
+    --primary: 206 82% 57%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 206 82% 47%;
+    --primary-glow: 206 82% 67%;
+    --secondary: 215 60% 65%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 215 60% 55%;
+    --muted: 220 13% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 13% 96%;
+    --accent-foreground: 220 15% 20%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 206 82% 57%;
+    --radius: 0.75rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 220 15% 20%;
+    --sidebar-primary: 206 82% 57%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 13% 96%;
+    --sidebar-accent-foreground: 220 15% 20%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 206 82% 57%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer components {
+  .btn-medical {
+    @apply bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-semibold px-8 py-3.5 rounded-xl shadow-lg hover:shadow-[0_10px_40px_hsl(var(--primary)/0.35)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-300;
+  }
+
+  .card-medical {
+    @apply bg-white border border-border/60 rounded-2xl shadow-[0_4px_6px_-1px_rgb(0_0_0_/0.1),0_2px_4px_-2px_rgb(0_0_0_/0.1)] hover:shadow-[0_10px_15px_-3px_rgb(0_0_0_/0.1),0_4px_6px_-4px_rgb(0_0_0_/0.1)] transition-all duration-300;
+  }
+
+  .input-medical {
+    @apply bg-white border-2 border-input focus:border-primary focus:ring-4 focus:ring-primary/15 rounded-xl px-4 py-3.5 transition-all duration-200 placeholder:text-muted-foreground text-foreground;
+  }
+
+  .gradient-text-medical {
+    @apply bg-gradient-to-r from-primary via-primary-glow to-secondary bg-clip-text text-transparent font-bold;
+  }
+  
+  .medical-shadow {
+    @apply shadow-[0_8px_32px_hsl(var(--primary)/0.12)];
+  }
+
+  .gradient-hero {
+    @apply bg-gradient-to-br from-primary via-primary-glow to-secondary;
+  }
+
+  .gradient-card {
+    @apply bg-gradient-to-br from-white to-muted/30;
+  }
+}
