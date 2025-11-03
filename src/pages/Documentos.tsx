@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from "@/components/ui/table";
@@ -47,6 +48,7 @@ type Beneficiario = {
   statusUsuario: 'Ativo' | 'Cancelado' | 'A Cadastrar';
   documentos: DocumentoEnviado[];
   cnpj: string;
+  nomeEmpresa?: string; // Adicionado para facilitar a exibição na lista consolidada
 };
 
 const mockBeneficiarios: Beneficiario[] = [
@@ -54,7 +56,7 @@ const mockBeneficiarios: Beneficiario[] = [
     { id: 101, nome: 'documentacao_joao_v1.pdf', dataEnvio: '2023-10-15', status: 'Aprovado', url: '#' },
   ]},
   { id: 2, nome: 'Maria Oliveira', cpf: '987.654.321-09', statusUsuario: 'Ativo', cnpj: '11.222.333/0001-44', documentos: [
-    { id: 201, nome: 'docs_maria_v1.pdf', dataEnvio: '2023-11-01', status: 'Recusado', motivoRecusa: 'Assinatura no RG está borrada.' },
+    { id: 201, nome: 'docs_maria_v1.pdf', dataEnvio: '2023-11-01', status: 'Recusado', motivoRecusa: 'Assinatura no RG está borrada.', url: '#' },
     { id: 202, nome: 'docs_maria_v2_corrigido.pdf', dataEnvio: '2023-11-05', status: 'Pendente' },
   ]},
   { id: 3, nome: 'Carlos Pereira', cpf: '111.222.333-44', statusUsuario: 'A Cadastrar', cnpj: '11.222.333/0001-44', documentos: [] },
@@ -73,6 +75,11 @@ type UploadableFile = {
   error?: string;
 };
 
+/**
+ * Determina o status consolidado dos documentos de um beneficiário.
+ * A ordem de prioridade é: Recusado > Pendente > Aprovado.
+ * @param docs - Lista de documentos enviados.
+ */
 const getDocumentStatusSummary = (docs: DocumentoEnviado[]): { status: DocumentoStatus, count: number } => {
   if (docs.some(d => d.status === 'Recusado')) return { status: 'Recusado', count: docs.filter(d => d.status === 'Recusado').length };
   if (docs.some(d => d.status === 'Pendente')) return { status: 'Pendente', count: docs.filter(d => d.status === 'Pendente').length };
@@ -80,33 +87,95 @@ const getDocumentStatusSummary = (docs: DocumentoEnviado[]): { status: Documento
   return { status: 'Pendente', count: 0 }; // Nenhum documento enviado ainda
 };
 
-// --- COMPONENTE PRINCIPAL ---
-export default function Documentos() {
-  const { selectedCompany } = useAuthStore();
+/**
+ * Determina o status consolidado dos documentos para todos os beneficiários de uma empresa.
+ * A ordem de prioridade é: Recusado > Pendente > Aprovado.
+ * @param companyCnpj - CNPJ da empresa.
+ */
+const getCompanyDocStatus = (companyCnpj: string): DocumentoStatus => {
+  const companyBeneficiarios = mockBeneficiarios.filter(b => b.cnpj === companyCnpj);
+  if (companyBeneficiarios.some(b => b.documentos.some(d => d.status === 'Recusado'))) return 'Recusado';
+  if (companyBeneficiarios.some(b => b.documentos.some(d => d.status === 'Pendente'))) return 'Pendente';
+  if (companyBeneficiarios.every(b => b.documentos.length > 0 && b.documentos.every(d => d.status === 'Aprovado'))) return 'Aprovado';
+  return 'Pendente'; // Se houver beneficiários sem documentos ou com status misto sem recusa/pendência explícita
+};
+
+/**
+ * Hook customizado para gerenciar a lógica de busca e filtragem de beneficiários.
+ */
+function useBeneficiariosData() {
+  const { user, selectedCompany, selectCompany } = useAuthStore();
   const [beneficiarios, setBeneficiarios] = useState<Beneficiario[]>([]);
   const [selectedBeneficiario, setSelectedBeneficiario] = useState<Beneficiario | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const navigate = useNavigate();
+  const [statusFilter, setStatusFilter] = useState<DocumentoStatus | 'Todos'>('Todos');
 
-  // Simula a busca de dados da API
   useEffect(() => {
+    // Auto-seleciona a empresa se o usuário não for 'cadastro' e tiver apenas uma.
+    if (user?.profile !== 'cadastro' && user?.companies.length === 1) {
+      selectCompany(user.companies[0]);
+    }
+  }, [user, selectCompany]);
+
+  useEffect(() => {
+    // Lógica para carregar os beneficiários com base na empresa selecionada ou no perfil.
     if (selectedCompany) {
-      // TODO: Substituir por chamada de API real
       const data = mockBeneficiarios.filter(b => b.cnpj === selectedCompany.cnpj);
       setBeneficiarios(data);
+    } else if (user?.profile === 'cadastro') {
+      // Perfil 'cadastro' sem empresa selecionada: mostra todos.
+      const companyNameMap = new Map(mockAllCompanies.map(c => [c.cnpj, c.name]));
+      const allData = mockBeneficiarios.map(b => ({ ...b, nomeEmpresa: companyNameMap.get(b.cnpj) || 'N/A' }));
+      setBeneficiarios(allData);
     } else {
+      // Outros perfis sem empresa selecionada: lista vazia.
       setBeneficiarios([]);
     }
-    setSelectedBeneficiario(null); // Reseta a seleção ao trocar de empresa
-    setSearchTerm("");
-  }, [selectedCompany]);
+    setSelectedBeneficiario(null);
+  }, [selectedCompany, user]);
 
   const filteredBeneficiarios = useMemo(() => {
-    return beneficiarios.filter(b =>
-      b.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.cpf.replace(/[^\d]/g, "").includes(searchTerm.replace(/[^\d]/g, ""))
-    );
-  }, [beneficiarios, searchTerm]);
+    return beneficiarios.filter(b => {
+      const searchMatch = b.nome.toLowerCase().includes(searchTerm.toLowerCase()) || b.cpf.replace(/[^\d]/g, "").includes(searchTerm.replace(/[^\d]/g, ""));
+      if (statusFilter === 'Todos') return searchMatch;
+      const statusSummary = getDocumentStatusSummary(b.documentos);
+      return searchMatch && statusSummary.status === statusFilter;
+    });
+  }, [beneficiarios, searchTerm, statusFilter]);
+  
+  return {
+    user,
+    selectedCompany,
+    selectCompany,
+    beneficiarios,
+    setBeneficiarios,
+    selectedBeneficiario,
+    setSelectedBeneficiario,
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    filteredBeneficiarios,
+  };
+}
+
+// --- COMPONENTE PRINCIPAL ---
+export default function Documentos() {
+  const {
+    user, selectedCompany, selectCompany,
+    beneficiarios, setBeneficiarios,
+    selectedBeneficiario, setSelectedBeneficiario,
+    searchTerm, setSearchTerm,
+    statusFilter, setStatusFilter,
+    filteredBeneficiarios,
+  } = useBeneficiariosData();
+  const navigate = useNavigate();
+
+  // Para usuários que não são 'cadastro' e têm mais de uma empresa,
+  // a tela de seleção é a primeira coisa a ser mostrada.
+  if (user?.profile !== 'cadastro' && user && user.companies.length > 1 && !selectedCompany) {
+    return <TelaSelecaoEmpresa onSelectEmpresa={selectCompany} />;
+  }
 
   if (selectedBeneficiario) {
     return <TelaGerenciamento 
@@ -116,23 +185,67 @@ export default function Documentos() {
             />;
   }
 
+  const isShowingAll = user?.profile === 'cadastro' && !selectedCompany;
+
   return (
-    <Card className="w-full max-w-5xl mx-auto">
+    <div className="space-y-6">
+      {/* Para o perfil de cadastro, a seleção de empresa é um filtro opcional */}
+      {user?.profile === 'cadastro' && (
+        <Card className="w-full max-w-6xl mx-auto">
+          <CardHeader>
+            <CardTitle>Filtro de Empresa</CardTitle>
+            <CardDescription>Selecione uma empresa para filtrar a lista de beneficiários ou veja todos.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Select onValueChange={(cnpj) => selectCompany(mockAllCompanies.find(c => c.cnpj === cnpj) || null)} value={selectedCompany?.cnpj || ''}>
+              <SelectTrigger className="w-full sm:w-1/2"><SelectValue placeholder="Visualizando todas as empresas..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value=''>Ver todas as empresas</SelectItem>
+                {mockAllCompanies.map(c => <SelectItem key={c.id} value={c.cnpj}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
+
+    <Card className="w-full max-w-6xl mx-auto">
       <CardHeader>
-        <CardTitle className="text-2xl">Gerenciamento de Documentos</CardTitle>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-2xl">Gerenciamento de Documentos</CardTitle>
+            <CardDescription>
+              {isShowingAll ? "Visão consolidada de todos os beneficiários." : `Beneficiários da empresa: ${selectedCompany?.name}`}
+            </CardDescription>
+          </div>
+        </div>
         <CardDescription>
           Selecione um beneficiário para enviar, visualizar ou gerenciar seus documentos.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            placeholder="Pesquisar por nome ou CPF do beneficiário..."
-            className="pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex flex-col sm:flex-row gap-4 mb-4">
+          <div className="relative flex-grow">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar por nome ou CPF do beneficiário..."
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Filtrar por status:</span>
+            <Button size="sm" variant={statusFilter === 'Todos' ? 'secondary' : 'outline'} onClick={() => setStatusFilter('Todos')}>Todos</Button>
+            <Button size="sm" variant={statusFilter === 'Pendente' ? 'secondary' : 'outline'} onClick={() => setStatusFilter('Pendente')} className="flex items-center gap-1.5">
+              <ShieldAlert className="h-4 w-4" /> Pendentes
+            </Button>
+            <Button size="sm" variant={statusFilter === 'Recusado' ? 'destructive' : 'outline'} onClick={() => setStatusFilter('Recusado')} className="flex items-center gap-1.5">
+              <ShieldX className="h-4 w-4" /> Recusados
+            </Button>
+            <Button size="sm" variant={statusFilter === 'Aprovado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Aprovado')} className="flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4" /> Aprovados
+            </Button>
+          </div>
         </div>
         <div className="border rounded-md">
           <Table>
@@ -142,6 +255,9 @@ export default function Documentos() {
             <TableHeader>
               <TableRow>
                 <TableHead>Beneficiário</TableHead>
+                {isShowingAll && (
+                  <TableHead>Empresa</TableHead>
+                )}
                 <TableHead>CPF</TableHead>
                 <TableHead className="text-center">Status dos Documentos</TableHead>
                 <TableHead className="text-right">Ação</TableHead>
@@ -156,6 +272,9 @@ export default function Documentos() {
                         <User className="h-4 w-4 text-muted-foreground" /> {b.nome}
                       </div>
                     </TableCell>
+                    {isShowingAll && (
+                      <TableCell>{b.nomeEmpresa}</TableCell>
+                    )}
                     <TableCell>{b.cpf}</TableCell>
                     <TableCell className="text-center">
                       <StatusBadge statusInfo={getDocumentStatusSummary(b.documentos)} />
@@ -167,7 +286,7 @@ export default function Documentos() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={isShowingAll ? 5 : 4} className="h-24 text-center">
                     Nenhum beneficiário corresponde à sua busca.
                   </TableCell>
                 </TableRow>
@@ -181,6 +300,85 @@ export default function Documentos() {
           <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
         </Button>
       </CardFooter>
+    </Card>
+    </div>
+  );
+}
+
+// --- TELA DE SELEÇÃO DE EMPRESA (TELA 1) ---
+
+// Mock de todas as empresas para o perfil de cadastro
+const mockAllCompanies = [
+  { id: '1', name: 'Empresa A', cnpj: '11.222.333/0001-44' },
+  { id: '2', name: 'Empresa B', cnpj: '44.555.666/0001-77' },
+  { id: '3', name: 'Empresa C', cnpj: '77.888.999/0001-00' },
+];
+
+function TelaSelecaoEmpresa({ onSelectEmpresa }: { onSelectEmpresa: (empresa: any) => void; }) {
+  const { user } = useAuthStore();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [allCompanies, setAllCompanies] = useState<(any & { docStatus: DocumentoStatus })[]>([]);
+
+  // Simula a busca de todas as empresas para o perfil de cadastro
+  useEffect(() => {
+    if (user?.profile === 'cadastro') {
+      // TODO: Substituir por chamada de API real que busca TODAS as empresas
+      const companiesWithStatus = mockAllCompanies.map(company => ({
+        ...company,
+        docStatus: getCompanyDocStatus(company.cnpj)
+      }));
+      setAllCompanies(companiesWithStatus);
+    } else if (user?.companies) {
+      const userCompaniesWithStatus = user.companies.map(company => ({
+        ...company,
+        docStatus: getCompanyDocStatus(company.cnpj)
+      }));
+      setAllCompanies(userCompaniesWithStatus);
+    }
+  }, [user]);
+
+  const companiesToShow = user?.profile === 'cadastro' ? allCompanies : allCompanies.filter(c => user?.companies.some(uc => uc.id === c.id));
+
+  const filteredCompanies = useMemo(() => {
+    return companiesToShow.filter(
+      (company) =>
+        company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (company.cnpj || "").replace(/[^\d]/g, "").includes(searchTerm.replace(/[^\d]/g, ""))
+    );
+  }, [companiesToShow, searchTerm]);
+
+  return (
+    <Card className="w-full max-w-5xl mx-auto mb-6">
+      <CardHeader>
+        <CardTitle>Seleção de Empresa</CardTitle>
+        <CardDescription>Selecione a empresa para visualizar os beneficiários.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input placeholder="Pesquisar por Razão Social ou CNPJ" className="pl-10" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        </div>
+        <div className="border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>CNPJ</TableHead>
+                <TableHead>Razão Social</TableHead>
+                <TableHead className="text-center">Status Documentos</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredCompanies.map((company) => (
+                <TableRow key={company.id} onClick={() => onSelectEmpresa(company)} className="cursor-pointer hover:bg-muted/50">
+                  <TableCell>{company.cnpj || 'N/A'}</TableCell>
+                  <TableCell className="font-medium">{company.name}</TableCell>
+                  <TableCell className="text-center"><StatusBadge statusInfo={{ status: company.docStatus, count: 0 }} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
     </Card>
   );
 }
@@ -211,7 +409,7 @@ function TelaGerenciamento({ beneficiario, onVoltar, setBeneficiarios }: TelaGer
 
   const handleRemoveFile = (id: string) => setFiles(files.filter(f => f.id !== id));
 
-  const simulateUpload = useCallback((fileId: string) => {
+  const simulateUpload = (fileId: string) => {
     const uploadInterval = setInterval(() => {
       setFiles(prevFiles =>
         prevFiles.map(f => {
@@ -235,7 +433,7 @@ function TelaGerenciamento({ beneficiario, onVoltar, setBeneficiarios }: TelaGer
         })
       );
     }, 300);
-  }, [setDocumentos]);
+  };
 
   const handleUploadClick = () => {
     const pendingFiles = files.filter(f => f.status === 'pending');
@@ -267,7 +465,7 @@ function TelaGerenciamento({ beneficiario, onVoltar, setBeneficiarios }: TelaGer
 
     toast({ 
       title: `Documento ${newStatus.toLowerCase()}!`, 
-      className: newStatus === 'Aprovado' ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900' });
+      className: newStatus === 'Recusado' ? 'bg-red-100 dark:bg-red-900' : undefined });
   };
 
   return (
@@ -372,11 +570,11 @@ function StatusBadge({ statusInfo }: { statusInfo: { status: DocumentoStatus, co
   const textMap: Record<DocumentoStatus, string> = {
     Aprovado: "Aprovado",
     Recusado: count > 1 ? `${count} Recusado(s)` : "Recusado",
-    Pendente: count > 0 ? (count > 1 ? `${count} Pendente(s)` : "Pendente") : 'Nenhum documento',
+    Pendente: count > 0 ? (count > 1 ? `${count} Pendente(s)` : "Pendente") : (status === 'Pendente' ? 'Pendente' : 'Nenhum documento'),
   };
 
   return (
-    <Badge variant={variants[status]} className="flex items-center justify-center w-fit mx-auto text-xs">
+    <Badge variant={variants[status]} className={`flex items-center justify-center w-fit mx-auto text-xs`}>
       {icons[status]}
       {textMap[status]}
     </Badge>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore, Company } from "@/store/useAuthStore";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -221,11 +221,27 @@ function TelaDetalhesCoparticipacao({ empresa, onVoltar }: { empresa: Company; o
  * Componente Principal que gerencia o estado entre as telas
  */
 export default function CopartPreFatura() {
+  const { user, selectedCompany, selectCompany } = useAuthStore();
   const [tela, setTela] = useState<'lista' | 'detalhes'>('lista');
   const [empresaSelecionada, setEmpresaSelecionada] = useState<Company | null>(null);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    // Se o usuário não for do perfil "cadastro" e tiver apenas uma empresa,
+    // seleciona-a e vai direto para a tela de detalhes.
+    if (user?.profile !== 'cadastro' && user?.companies.length === 1) {
+      const unicaEmpresa = user.companies[0];
+      if (unicaEmpresa) {
+        selectCompany(unicaEmpresa);
+        setEmpresaSelecionada(unicaEmpresa);
+        setTela('detalhes');
+      }
+    }
+  }, [user, selectCompany]);
+
   const handleSelectEmpresa = (empresa: Company) => {
+    // Atualiza a empresa selecionada globalmente também
+    selectCompany(empresa);
     setEmpresaSelecionada(empresa);
     setTela('detalhes');
   };
@@ -233,6 +249,11 @@ export default function CopartPreFatura() {
   const handleVoltarParaLista = () => {
     setEmpresaSelecionada(null);
     setTela('lista');
+    // Se o usuário não for do perfil "cadastro", volta para o dashboard
+    // pois a lista completa não é o comportamento padrão para ele.
+    if (user?.profile !== 'cadastro') {
+      navigate(-1);
+    }
   };
 
   const handleVoltarParaDashboard = () => {

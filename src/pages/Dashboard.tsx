@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Company, useAuthStore } from "@/store/useAuthStore";
-import { Building, Mail, Globe, FileText, WalletCards, Briefcase, LucideIcon } from "lucide-react";
+import { Building, Mail, Globe, FileText, WalletCards, Briefcase, LucideIcon, Files } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -83,6 +83,7 @@ export default function Dashboard() {
               <ul className="grid gap-4 sm:grid-cols-2">
                 <li><QuickAccessLink to="/copart-pre-fatura" icon={FileText} title="Coparticipação Pré-faturada" description="Consulte os detalhes de coparticipação antes do faturamento." /></li>
                 <li><QuickAccessLink to="/docs-financeiros" icon={WalletCards} title="Documentos Financeiros" description="Acesse notas, boletos e relatórios de beneficiários." /></li>
+                <li><QuickAccessLink to="/documentos" icon={Files} title="Gestão de Documentos" description="Envie e gerencie documentos de beneficiários." /></li>
               </ul>
             </CardContent>
             <CardFooter>

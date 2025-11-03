@@ -15,6 +15,7 @@ export interface Company {
 }
 
 interface User {
+  profile: string;
   id: string;
   name: string;
   username: string;
@@ -44,6 +45,7 @@ export const useAuthStore = create<AuthState>()(
         if (username === 'admin' && password === '123456' && companyCode === '123') {
           const userData: User = {
             id: '1',
+            profile: 'admin',
             name: 'Admin Bensaúde',
             username: 'admin',
             role: 'admin',
