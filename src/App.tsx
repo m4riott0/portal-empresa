@@ -13,6 +13,7 @@ import { Header } from "./components/layout/Header";
 import { useAuthStore } from "./store/useAuthStore";
 import DocsFinaceiros from "./pages/DocsFinaceiros";
 import CopartPreFatura from "./pages/CopartPreFatura";
+import Documentos from "./pages/Documentos";
 
 const queryClient = new QueryClient();
 
@@ -94,6 +95,14 @@ const App = () => {
               element={
                 <ProtectedLayout>
                   <CopartPreFatura/>
+                </ProtectedLayout>
+              }
+            />
+             <Route
+              path="/docs"
+              element={
+                <ProtectedLayout>
+                  <Documentos/>
                 </ProtectedLayout>
               }
             />

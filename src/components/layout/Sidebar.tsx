@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 const menuItems = [
   { title: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { title: 'Beneficiários', icon: Users, path: '/beneficiarios' },
+  { title: 'Documentos', icon: ClipboardList, path: '/docs'},
   { title: 'Copart. Pré-faturada', icon: Receipt, path: '/copart-pre-fatura' },
   { title: 'Documentos Financeiros', icon: FileText, path: '/docs-financeiros' },
 ];
