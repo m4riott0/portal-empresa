@@ -61,6 +61,11 @@ export default function DocsFinaceiros() {
   };
 
   const handleCompanyChange = (companyId: string) => {
+    if (!companyId) {
+      // Limpa a seleção se "Todas as empresas" for escolhido
+      selectCompany(null);
+      return;
+    }
     const company = user?.companies.find(c => c.id === companyId);
     if (company) {
       selectCompany(company);
@@ -108,27 +113,19 @@ export default function DocsFinaceiros() {
             )}
           </div>
           {user && user.companies.length > 0 && (
-            <div className="w-full sm:w-72">
-              <Select onValueChange={handleCompanyChange} value={selectedCompany?.id}>
-                <SelectTrigger><SelectValue placeholder="Selecione uma empresa..." /></SelectTrigger>
-                <SelectContent>{user.companies.map(company => (<SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>))}</SelectContent>
+            <div className="w-full sm:w-80">
+              <Select onValueChange={handleCompanyChange} value={selectedCompany?.id || ''}>
+                <SelectTrigger><SelectValue placeholder="Selecione uma empresa para ver os detalhes..." /></SelectTrigger>
+                <SelectContent>
+                  {user?.profile === 'Admin' && <SelectItem value="">Ver todas as empresas</SelectItem>}
+                  {user.companies.map(company => (<SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>))}
+                </SelectContent>
               </Select>
             </div>
           )}
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <Alert className="flex items-start space-x-4">
-          <FileText className="h-5 w-5 mt-1" />
-          <AlertTitle>Sobre o Relatório Repasse</AlertTitle>
-          <AlertDescription>
-            Este relatório detalha os valores repassados e é utilizado para fins contábeis. Para mais detalhes técnicos, {" "}
-            <a href="#" className="font-semibold text-primary hover:underline">
-              clique aqui para acessar o layout do arquivo de importação
-            </a>.
-          </AlertDescription>
-        </Alert>
-
         {selectedCompany ? (
           <div className="border rounded-md">
             <Table className="w-full">
@@ -155,7 +152,7 @@ export default function DocsFinaceiros() {
                     </Button>
                   </TableHead>
                   <TableHead className="text-center">
-                    <Button variant="ghost" onClick={() => handleSort('pago')} className="px-0 hover:bg-transparent">
+                    <Button variant="ghost" onClick={() => handleSort('pago')} className="px-0 hover:bg-transparent justify-center w-full">
                       Pago <ArrowUpDown className={`ml-2 h-4 w-4 ${sortColumn === 'pago' ? 'text-foreground' : 'text-muted-foreground/50'}`} />
                     </Button>
                   </TableHead>
@@ -173,8 +170,14 @@ export default function DocsFinaceiros() {
                     <TableCell className="font-medium">{nota.nrNf}</TableCell>
                     <TableCell className="text-muted-foreground">{nota.competencia}</TableCell>
                     <TableCell>{new Date(nota.vencimento).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</TableCell>
-                    <TableCell className="text-right">{nota.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                    <TableCell className="text-center">{nota.pago}</TableCell>
+                    <TableCell className="text-right font-mono">{nota.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                    <TableCell className="text-center">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        nota.pago === 'SIM' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>{nota.pago === 'SIM' ? 'Pago' : 'Pendente'}</span>
+                    </TableCell>
                     <TableCell className="text-center">{nota.qtdeVidas}</TableCell>
                     <TableCell className="flex justify-center items-center gap-1">
                       <DropdownMenu>
@@ -191,11 +194,11 @@ export default function DocsFinaceiros() {
                           <DropdownMenuSeparator />
                           <DropdownMenuSub>
                             <DropdownMenuSubTrigger>
-                              <FileSpreadsheet className="mr-2 h-4 w-4 text-green-600" /> Relatórios
+                              <FileSpreadsheet className="mr-2 h-4 w-4 text-blue-600" /> Relatórios
                             </DropdownMenuSubTrigger>
                             <DropdownMenuPortal>
                               <DropdownMenuSubContent>
-                                <DropdownMenuItem onClick={() => handleActionClick("Relatório NF", nota)}><FileSpreadsheet className="mr-2 h-4 w-4" /> Relatório (Nota Fiscal)</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleActionClick("Relatório NF", nota)}><FileSpreadsheet className="mr-2 h-4 w-4 text-blue-500" /> Relatório (Nota Fiscal)</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleActionClick("Relatório Repasse", nota)}><FileDigit className="mr-2 h-4 w-4" /> Relatório (Repasse)</DropdownMenuItem>
                               </DropdownMenuSubContent>
                             </DropdownMenuPortal>

@@ -30,7 +30,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {user && user.companies.length > 1 && (
+      {user && user.companies.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -83,7 +83,6 @@ export default function Dashboard() {
               <ul className="grid gap-4 sm:grid-cols-2">
                 <li><QuickAccessLink to="/copart-pre-fatura" icon={FileText} title="Coparticipação Pré-faturada" description="Consulte os detalhes de coparticipação antes do faturamento." /></li>
                 <li><QuickAccessLink to="/docs-financeiros" icon={WalletCards} title="Documentos Financeiros" description="Acesse notas, boletos e relatórios de beneficiários." /></li>
-                <li><QuickAccessLink to="/documentos" icon={Files} title="Gestão de Documentos" description="Envie e gerencie documentos de beneficiários." /></li>
               </ul>
             </CardContent>
             <CardFooter>

@@ -4,7 +4,7 @@ import { useAuthStore, Company } from "@/store/useAuthStore";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as UiTableFooter } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as UiTableFooter, TableCaption } from "@/components/ui/table";
 import { ArrowLeft, Download, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -54,17 +54,19 @@ function TelaSelecaoEmpresa({ onSelectEmpresa, onVoltar }: { onSelectEmpresa: (e
         <div className="border rounded-md">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>CNPJ/CPF</TableHead>
-                <TableHead>Razão Social</TableHead>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[70%]">Empresa</TableHead>
+                <TableHead className="text-right">CNPJ/CPF</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredCompanies.length > 0 ? (
                 filteredCompanies.map((company) => (
                   <TableRow key={company.id} onClick={() => onSelectEmpresa(company)} className="cursor-pointer hover:bg-muted/50">
-                    <TableCell>{company.cnpj || 'Não informado'}</TableCell>
                     <TableCell className="font-medium">{company.name}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {company.cnpj || 'Não informado'}
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
@@ -168,21 +170,28 @@ function TelaDetalhesCoparticipacao({ empresa, onVoltar }: { empresa: Company; o
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Contrato</TableHead>
-                <TableHead>Funcionário</TableHead>
+                <TableHead className="w-[40%]">Funcionário</TableHead>
                 <TableHead>Vigência</TableHead>
-                <TableHead>Cancelado</TableHead>
+                <TableHead className="text-center">Status</TableHead>
                 <TableHead className="text-right">Valor CPA a Faturar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredBeneficiarios.length > 0 ? (
                 filteredBeneficiarios.map((b) => (
-                  <TableRow key={b.id}>
-                    <TableCell>{b.contrato}</TableCell>
-                    <TableCell className="font-medium">{b.funcionario}</TableCell>
+                  <TableRow key={b.id} className="hover:bg-muted/50">
+                    <TableCell>
+                      <div className="font-medium">{b.funcionario}</div>
+                      <div className="text-xs text-muted-foreground">Contrato: {b.contrato}</div>
+                    </TableCell>
                     <TableCell>{new Date(b.vigencia).toLocaleDateString('pt-BR')}</TableCell>
-                    <TableCell>{b.cancelado ? 'Sim' : 'Não'}</TableCell>
+                    <TableCell className="text-center">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        b.cancelado 
+                          ? 'bg-red-100 text-red-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>{b.cancelado ? 'Cancelado' : 'Ativo'}</span>
+                    </TableCell>
                     <TableCell className="text-right">{b.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                   </TableRow>
                 ))
@@ -196,7 +205,7 @@ function TelaDetalhesCoparticipacao({ empresa, onVoltar }: { empresa: Company; o
             </TableBody>
             <UiTableFooter>
               <TableRow>
-                <TableCell colSpan={4}>Total de beneficiários com coparticipação a faturar: {filteredBeneficiarios.filter(b => b.valor > 0).length}</TableCell>
+                <TableCell colSpan={3}>Total de beneficiários com coparticipação a faturar: {filteredBeneficiarios.filter(b => b.valor > 0).length}</TableCell>
                 <TableCell className="text-right font-bold text-lg">
                   Total Geral: {totalCoparticipacao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </TableCell>
@@ -222,22 +231,24 @@ function TelaDetalhesCoparticipacao({ empresa, onVoltar }: { empresa: Company; o
  */
 export default function CopartPreFatura() {
   const { user, selectedCompany, selectCompany } = useAuthStore();
-  const [tela, setTela] = useState<'lista' | 'detalhes'>('lista');
-  const [empresaSelecionada, setEmpresaSelecionada] = useState<Company | null>(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Se o usuário não for do perfil "cadastro" e tiver apenas uma empresa,
-    // seleciona-a e vai direto para a tela de detalhes.
-    if (user?.profile !== 'cadastro' && user?.companies.length === 1) {
-      const unicaEmpresa = user.companies[0];
-      if (unicaEmpresa) {
-        selectCompany(unicaEmpresa);
-        setEmpresaSelecionada(unicaEmpresa);
-        setTela('detalhes');
-      }
+  // Define o estado inicial com base no perfil do usuário
+  const getInitialState = () => {
+    if (user?.profile !== 'cadastro' && user?.companies?.length === 1) {
+      return {
+        tela: 'detalhes' as const,
+        empresaSelecionada: user.companies[0],
+      };
     }
-  }, [user, selectCompany]);
+    return {
+      tela: 'lista' as const,
+      empresaSelecionada: null,
+    };
+  };
+
+  const [tela, setTela] = useState(getInitialState().tela);
+  const [empresaSelecionada, setEmpresaSelecionada] = useState<Company | null>(getInitialState().empresaSelecionada);
 
   const handleSelectEmpresa = (empresa: Company) => {
     // Atualiza a empresa selecionada globalmente também

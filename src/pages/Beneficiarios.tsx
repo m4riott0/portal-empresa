@@ -19,19 +19,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import { Pagination } from "@/components/ui/pagination";
 import { Label, Label as FormLabel } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from "@/components/ui/table";import { Search, UserPlus, Pencil, Trash2, Loader2, FileDown, FileUp, FileSearch, Users, EllipsisVertical } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from "@/components/ui/table";import { Search, UserPlus, Pencil, Trash2, Loader2, FileDown, FileUp, FileSearch, Users, EllipsisVertical, CheckCircle, XCircle, HelpCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormMessage } from "@/components/ui/form";
 
@@ -62,7 +53,7 @@ type Beneficiario = {
     uf?: string;
   };
   statusUsuario: 'Ativo' | 'Cancelado' | 'A Cadastrar';
-  statusDocumento: 'Aprovado' | 'Negado' | 'Pendente';
+  statusDocumento: 'Aprovado' | 'Negado' | 'Suspenso';
   dependentes: Dependente[];
   cnpj: string;
   nomeEmpresa: string;
@@ -75,7 +66,7 @@ type Dependente = {
   grauParentesco: string;
   dataNascimento: string;
   cpf: string;
-  status: 'Ativo' | 'Pendente';
+  status: 'Ativo' | 'Suspenso';
 };
 
 // Schema de validação com Zod para o formulário de beneficiário
@@ -143,9 +134,24 @@ type DependenteFormData = z.infer<typeof dependenteSchema>;
 // --- DADOS MOCKADOS PARA PROTÓTIPO ---
 // Em um ambiente real, estes dados viriam da API.
 const mockBeneficiarios: Beneficiario[] = [
-  { id: 1, nome: 'João da Silva', statusUsuario: 'Ativo', statusDocumento: 'Aprovado', dependentes: [{id: 101, nome: 'Ana Silva', grauParentesco: 'Cônjuge', dataNascimento: '1985-05-20', cpf: '111.222.333-44', status: 'Ativo'}, {id: 102, nome: 'Pedro Silva', grauParentesco: 'Filho', dataNascimento: '2010-10-15', cpf: '222.333.444-55', status: 'Ativo'}], cnpj: '11.222.333/0001-44', nomeEmpresa: 'Empresa A' },
-  { id: 2, nome: 'Maria Oliveira', statusUsuario: 'Cancelado', statusDocumento: 'Negado', dependentes: [], cnpj: '11.222.333/0001-44', nomeEmpresa: 'Empresa A' },
-  { id: 3, nome: 'Carlos Pereira', statusUsuario: 'A Cadastrar', statusDocumento: 'Pendente', dependentes: [{id: 103, nome: 'Mariana Pereira', grauParentesco: 'Filha', dataNascimento: '2015-02-28', cpf: '333.444.555-66', status: 'Pendente'}], cnpj: '44.555.666/0001-77', nomeEmpresa: 'Empresa B' },
+  { 
+    id: 1, nome: 'João da Silva', cpf: '123.456.789-01', statusUsuario: 'Ativo', statusDocumento: 'Aprovado', 
+    dependentes: [{id: 101, nome: 'Ana Silva', grauParentesco: 'Cônjuge', dataNascimento: '1985-05-20', cpf: '111.222.333-44', status: 'Ativo'}, {id: 102, nome: 'Pedro Silva', grauParentesco: 'Filho', dataNascimento: '2010-10-15', cpf: '222.333.444-55', status: 'Ativo'}], 
+    cnpj: '11.222.333/0001-44', nomeEmpresa: 'Empresa A',
+    plano: { inicioVigencia: '2023-01-15' }
+  },
+  { 
+    id: 2, nome: 'Maria Oliveira', cpf: '987.654.321-09', statusUsuario: 'Cancelado', statusDocumento: 'Negado', 
+    dependentes: [], 
+    cnpj: '11.222.333/0001-44', nomeEmpresa: 'Empresa A',
+    plano: { inicioVigencia: '2022-11-01' }
+  },
+  { 
+    id: 3, nome: 'Carlos Pereira', cpf: '555.666.777-88', statusUsuario: 'A Cadastrar', statusDocumento: 'Suspenso', 
+    dependentes: [{id: 103, nome: 'Mariana Pereira', grauParentesco: 'Filha', dataNascimento: '2015-02-28', cpf: '333.444.555-66', status: 'Suspenso'}], 
+    cnpj: '44.555.666/0001-77', nomeEmpresa: 'Empresa B',
+    plano: { inicioVigencia: '2024-03-10' }
+  },
 ];
 
 type ModalState =
@@ -160,7 +166,7 @@ export default function Beneficiarios() {
   const [beneficiarios, setBeneficiarios] = useState<Beneficiario[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilters, setStatusFilters] = useState<{ usuario: string[], documento: string[] }>({ usuario: [], documento: [] });
+  const [statusFilters, setStatusFilters] = useState<{ usuario: string[] }>({ usuario: [] });
   const [modalState, setModalState] = useState<ModalState>(null);
   const [addingDependentTo, setAddingDependentTo] = useState<Beneficiario | null>(null);
   const { toast } = useToast();
@@ -177,24 +183,39 @@ export default function Beneficiarios() {
   // --- EFEITOS ---
   // Busca os beneficiários sempre que a empresa selecionada mudar.
   const fetchBeneficiarios = useCallback(async () => {
-    if (!selectedCompany) {
-      setBeneficiarios([]);
-      return;
-    }
     setLoading(true);
     try {
-      // TODO: Substituir o código abaixo pela chamada de API real.
-      // Ex: const data = await api.getBeneficiarios(selectedCompany.id);
-      console.log(`Buscando beneficiários para a empresa: ${selectedCompany.name}`);
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simula o delay da API
-      setBeneficiarios(mockBeneficiarios.filter(b => b.cnpj === selectedCompany.cnpj));
+      if (selectedCompany) {
+        // Busca para uma empresa específica
+        console.log(`Buscando beneficiários para a empresa: ${selectedCompany.name}`);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Simula o delay da API
+        setBeneficiarios(mockBeneficiarios.filter(b => b.cnpj === selectedCompany.cnpj));
+      } else if (user?.profile === 'cadastro') {
+        // Busca para todas as empresas (perfil cadastro)
+        console.log(`Buscando beneficiários para todas as empresas.`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setBeneficiarios(mockBeneficiarios); // Em um caso real, a API retornaria todos
+      } else {
+        setBeneficiarios([]);
+      }
     } catch (error) {
       console.error("Erro ao buscar beneficiários:", error);
       toast({ variant: "destructive", title: "Erro ao buscar beneficiários." });
     } finally {
       setLoading(false);
     }
-  }, [selectedCompany, toast]);
+  }, [selectedCompany, toast, user?.profile]);
+
+  useEffect(() => {
+    // Para o perfil de cadastro, começa com "todas as empresas"
+    // A verificação 'selectedCompany' evita um loop de renderização infinito.
+    if (user?.profile === 'cadastro' && selectedCompany) {
+      selectCompany(null);
+    } else if (user?.companies.length === 1) {
+      selectCompany(user.companies[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.profile]);
 
   useEffect(() => {
     fetchBeneficiarios();
@@ -206,8 +227,7 @@ export default function Beneficiarios() {
     return beneficiarios.filter(b => {
       const nameMatch = b.nome.toLowerCase().includes(searchTerm.toLowerCase());
       const statusUsuarioMatch = statusFilters.usuario.length === 0 || statusFilters.usuario.includes(b.statusUsuario);
-      const statusDocumentoMatch = statusFilters.documento.length === 0 || statusFilters.documento.includes(b.statusDocumento);
-      return nameMatch && statusUsuarioMatch && statusDocumentoMatch;
+      return nameMatch && statusUsuarioMatch;
     });
   }, [beneficiarios, searchTerm, statusFilters]);
 
@@ -226,6 +246,10 @@ export default function Beneficiarios() {
 
   // --- HANDLERS DE EVENTOS ---
   const handleCompanyChange = (companyId: string) => {
+    if (!companyId) {
+      selectCompany(null);
+      return;
+    }
     const company = user?.companies.find(c => c.id === companyId);
     if (company) {
       selectCompany(company);
@@ -261,7 +285,7 @@ export default function Beneficiarios() {
     try {
       // TODO: Substituir a simulação abaixo pela chamada de API real para DELETAR.
       // Ex: await api.deleteBeneficiario(id);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simula o delay da API
       toast({ variant: "destructive", title: "Beneficiário removido com sucesso!" });
       fetchBeneficiarios(); // Re-busca os dados para garantir consistência
     } catch (error) {
@@ -285,7 +309,7 @@ export default function Beneficiarios() {
   };
 
   // Lida com a mudança nos checkboxes de filtro.
-  const handleFilterChange = (type: 'usuario' | 'documento', value: string, checked: boolean) => {
+  const handleFilterChange = (type: 'usuario', value: string, checked: boolean) => {
     setStatusFilters(prev => {
       const currentFilters = new Set(prev[type]);
       if (checked) {
@@ -389,7 +413,7 @@ export default function Beneficiarios() {
         newBeneficiarios.push({
           ...beneficiarioData,
           id: Date.now() + i, // ID simulado
-          statusUsuario: 'A Cadastrar', statusDocumento: 'Pendente', dependentes: 0, cnpj: selectedCompany.cnpj, nomeEmpresa: selectedCompany.name
+          statusUsuario: 'A Cadastrar', statusDocumento: 'Suspenso', dependentes: 0, cnpj: selectedCompany.cnpj, nomeEmpresa: selectedCompany.name
         });
       }
       
@@ -423,7 +447,7 @@ export default function Beneficiarios() {
       dataAdmissao: "",
       endereco: {},
       statusUsuario: 'A Cadastrar',
-      statusDocumento: 'Pendente',
+      statusDocumento: 'Suspenso',
       dependentes: [],
       plano: {
         adesao: true,
@@ -444,13 +468,20 @@ export default function Beneficiarios() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Empresa</label>
-              <Select onValueChange={handleCompanyChange} value={selectedCompany?.id}>
-                <SelectTrigger><SelectValue placeholder="Selecione uma empresa..." /></SelectTrigger>
-                <SelectContent>{user?.companies.map(company => (<SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>))}</SelectContent>
-              </Select>
-            </div>
+            {user && (user.profile === 'cadastro' || user.companies.length > 1) && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Empresa</label>
+                <Select onValueChange={handleCompanyChange} value={selectedCompany?.id || ''}>
+                  <SelectTrigger><SelectValue placeholder="Visualizando todas as empresas..." /></SelectTrigger>
+                  <SelectContent>
+                    {user?.profile === 'cadastro' && (
+                      <SelectItem value=''>Ver todas as empresas</SelectItem>
+                    )}
+                    {user?.companies.map(company => (<SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <label className="text-sm font-medium">Status Usuário</label>
               <div className="flex items-center space-x-4 pt-2">
@@ -460,31 +491,23 @@ export default function Beneficiarios() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Status Doc.</label>
-              <div className="flex items-center space-x-4 pt-2">
-                <div className="flex items-center space-x-2"><Checkbox id="doc-aprovado" onCheckedChange={(c) => handleFilterChange('documento', 'Aprovado', !!c)} /><label htmlFor="doc-aprovado">Aprovado</label></div>
-                <div className="flex items-center space-x-2"><Checkbox id="doc-negado" onCheckedChange={(c) => handleFilterChange('documento', 'Negado', !!c)} /><label htmlFor="doc-negado">Negado</label></div>
-                <div className="flex items-center space-x-2"><Checkbox id="doc-pendente" onCheckedChange={(c) => handleFilterChange('documento', 'Pendente', !!c)} /><label htmlFor="doc-pendente">Pendente</label></div>
-              </div>
-            </div>
-            <div className="space-y-2">
               <label htmlFor="search-beneficiario" className="text-sm font-medium">Campo de busca</label>
               <Input id="search-beneficiario" placeholder="Digite o nome do beneficiário..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
           </div>
           <div className="flex flex-wrap justify-end gap-2 pt-4 mt-4 border-t">
-              <Button variant="outline" onClick={handleExportTemplate}><FileDown className="mr-2 h-4 w-4" /> Exportar Modelo (CSV)</Button>
+              <Button variant="outline" onClick={handleExportTemplate}><FileDown className="mr-2 h-4 w-4" /> Exportar Modelo (Planilha)</Button>
               
               {/* --- INÍCIO: MODAL DE IMPORTAÇÃO --- */}
               <Dialog open={modalState?.type === 'import'} onOpenChange={(isOpen) => !isOpen && setModalState(null)}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" onClick={() => { setModalState({ type: 'import' }); setImportFile(null); setImportResult(null); }}><FileUp className="mr-2 h-4 w-4" /> Importar Funcionários (CSV)</Button>
+                  <Button variant="outline" onClick={() => { setModalState({ type: 'import' }); setImportFile(null); setImportResult(null); }}><FileUp className="mr-2 h-4 w-4" /> Importar Funcionários (Planilha)</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
                   <DialogHeader>
                     <DialogTitle>Importar Funcionários em Massa</DialogTitle>
                     <DialogDescription>
-                      Selecione um arquivo CSV para adicionar novos funcionários. Use o modelo exportado para garantir o formato correto.
+                      Selecione um arquivo de planilha para adicionar novos funcionários. Use o modelo exportado para garantir o formato correto.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
@@ -492,7 +515,7 @@ export default function Beneficiarios() {
                     {importResult && (
                       <div className="mt-4 p-4 border rounded-md bg-muted/50 text-sm">
                         <p className="font-semibold">Resultado da Importação:</p>
-                        <p className="text-green-600">{importResult.success} registros importados com sucesso.</p>
+                        <p className="text-blue-600">{importResult.success} registros importados com sucesso.</p>
                         {importResult.errors.length > 0 && (
                           <>
                             <p className="text-red-600 mt-2">{importResult.errors.length} erros encontrados:</p>
@@ -532,25 +555,40 @@ export default function Beneficiarios() {
             <TableCaption>{loading ? "Carregando..." : `Exibindo ${paginatedBeneficiarios.length} de ${filteredBeneficiarios.length} beneficiários encontrados.`}</TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead>Código</TableHead>
-                <TableHead>Nome do Beneficiário</TableHead>
+                <TableHead className="w-[350px]">Beneficiário</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Documentos</TableHead>
+                <TableHead>Vigência</TableHead>
                 <TableHead className="text-center">Dependentes</TableHead>
-                <TableHead>Empresa</TableHead>
+                {user?.profile === 'cadastro' && !selectedCompany && <TableHead>Empresa</TableHead>}
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (<TableRow><TableCell colSpan={7} className="text-center h-24">Carregando beneficiários...</TableCell></TableRow>) :
+              {loading ? (<TableRow><TableCell colSpan={6} className="text-center h-24">Carregando beneficiários...</TableCell></TableRow>) :
                 paginatedBeneficiarios.map(b => (
                   <TableRow key={b.id}>
-                    <TableCell>{b.id}</TableCell>
-                    <TableCell className="font-medium">{b.nome}</TableCell>
-                    <TableCell><span className={`px-2 py-1 rounded-full text-xs font-medium ${b.statusUsuario === 'Ativo' ? 'bg-green-100 text-green-800' : b.statusUsuario === 'Cancelado' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>{b.statusUsuario}</span></TableCell>
-                    <TableCell>{b.statusDocumento}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{b.nome}</div>
+                      <div className="text-xs text-muted-foreground">{b.cpf}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        b.statusUsuario === 'Ativo' ? 'bg-blue-100 text-blue-800' : 
+                        b.statusUsuario === 'Cancelado' ? 'bg-red-100 text-red-800' : 
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {b.statusUsuario === 'Ativo' && <CheckCircle className="h-3 w-3" />}
+                        {b.statusUsuario === 'Cancelado' && <XCircle className="h-3 w-3" />}
+                        {b.statusUsuario === 'A Cadastrar' && <HelpCircle className="h-3 w-3" />}
+                        {b.statusUsuario}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {b.plano?.inicioVigencia ? new Date(b.plano.inicioVigencia).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'N/A'}
+                    </TableCell>
                     <TableCell className="text-center">{b.dependentes.length}</TableCell>
-                    <TableCell>{b.nomeEmpresa}</TableCell>
+                    {user?.profile === 'cadastro' && !selectedCompany && (
+                      <TableCell>{b.nomeEmpresa}</TableCell>)}
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -576,7 +614,7 @@ export default function Beneficiarios() {
                             <span>Gerenciar Dependentes ({b.dependentes.length})</span>
                           </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => openAddDependentModal(b)}>
-                            <UserPlus className="mr-2 h-4 w-4 text-green-500" />
+                            <UserPlus className="mr-2 h-4 w-4 text-blue-500" />
                             Adicionar Dependente
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
@@ -615,21 +653,24 @@ export default function Beneficiarios() {
         {/* --- FIM: MODAL DE EXCLUSÃO --- */}
         {totalPages > 1 && (
           <CardFooter>
-            <Pagination>
-              <PaginationContent> 
-                {currentPage > 1 && (
-                  <PaginationItem>
-                    <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.max(1, p - 1)); }} />
-                  </PaginationItem>
-                )}
-                <PaginationItem><PaginationLink>{currentPage}</PaginationLink></PaginationItem>
-                <PaginationItem><PaginationEllipsis /></PaginationItem>
-                {currentPage < totalPages && (
-                  <PaginationItem>
-                    <PaginationNext href="#" onClick={(e) => { e.preventDefault(); setCurrentPage(p => Math.min(totalPages, p + 1)); }} />
-                  </PaginationItem>
-                )}
-              </PaginationContent>
+            <Pagination className="mt-4">
+              <div className="flex-1 text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >Anterior</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >Próximo</Button>
+              </div>
             </Pagination>
           </CardFooter>
         )}
@@ -799,8 +840,15 @@ function BeneficiarioFormDialog({ beneficiario, onSave, onOpenChange, defaultTab
                         <TableCell className="font-medium">{dep.nome}</TableCell>
                         <TableCell>{dep.grauParentesco}</TableCell>
                         <TableCell>{dep.cpf}</TableCell>
-                        <TableCell>{dep.status}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell>
+                          <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                            dep.status === 'Ativo' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {dep.status === 'Ativo' ? <CheckCircle className="h-3 w-3" /> : <HelpCircle className="h-3 w-3" />}
+                            {dep.status}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right space-x-1">
                           <Button variant="ghost" size="icon"><Pencil className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
                         </TableCell>

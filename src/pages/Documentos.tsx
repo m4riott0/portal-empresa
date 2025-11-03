@@ -30,7 +30,7 @@ import { useNavigate } from "react-router-dom";
 
 // --- TIPOS E DADOS MOCKADOS (REUTILIZANDO E ADAPTANDO DE BENEFICIARIOS.TSX) ---
 
-type DocumentoStatus = 'Pendente' | 'Aprovado' | 'Recusado';
+type DocumentoStatus = 'Aprovado' | 'Recusado';
 
 type DocumentoEnviado = {
   id: number;
@@ -48,21 +48,24 @@ type Beneficiario = {
   statusUsuario: 'Ativo' | 'Cancelado' | 'A Cadastrar';
   documentos: DocumentoEnviado[];
   cnpj: string;
+  plano?: { inicioVigencia?: string; };
   nomeEmpresa?: string; // Adicionado para facilitar a exibição na lista consolidada
 };
 
 const mockBeneficiarios: Beneficiario[] = [
   { id: 1, nome: 'João da Silva', cpf: '123.456.789-01', statusUsuario: 'Ativo', cnpj: '11.222.333/0001-44', documentos: [
     { id: 101, nome: 'documentacao_joao_v1.pdf', dataEnvio: '2023-10-15', status: 'Aprovado', url: '#' },
-  ]},
+  ], plano: { inicioVigencia: '2023-01-15' }},
   { id: 2, nome: 'Maria Oliveira', cpf: '987.654.321-09', statusUsuario: 'Ativo', cnpj: '11.222.333/0001-44', documentos: [
-    { id: 201, nome: 'docs_maria_v1.pdf', dataEnvio: '2023-11-01', status: 'Recusado', motivoRecusa: 'Assinatura no RG está borrada.', url: '#' },
-    { id: 202, nome: 'docs_maria_v2_corrigido.pdf', dataEnvio: '2023-11-05', status: 'Pendente' },
-  ]},
-  { id: 3, nome: 'Carlos Pereira', cpf: '111.222.333-44', statusUsuario: 'A Cadastrar', cnpj: '11.222.333/0001-44', documentos: [] },
-  { id: 4, nome: 'Juliana Alves', cpf: '444.555.666-77', statusUsuario: 'Ativo', cnpj: '44.555.666/0001-77', documentos: [
-    { id: 301, nome: 'documentos_completos_juliana.pdf', dataEnvio: '2023-12-01', status: 'Pendente' },
-  ]},
+    { id: 201, nome: 'docs_maria_v1.pdf', dataEnvio: '2023-11-01', status: 'Recusado', motivoRecusa: 'Assinatura no RG está borrada.', url: '#' }
+  ], plano: { inicioVigencia: '2022-11-01' }},
+  { 
+    id: 4, nome: 'Juliana Alves', cpf: '444.555.666-77', statusUsuario: 'Ativo', cnpj: '44.555.666/0001-77', 
+    documentos: [
+      { id: 301, nome: 'documentos_completos_juliana.pdf', dataEnvio: '2023-12-01', status: 'Aprovado' }
+    ], 
+    plano: { inicioVigencia: '2024-03-10' }
+  },
 ];
 
 type UploadStatus = 'pending' | 'uploading' | 'success' | 'error';
@@ -81,10 +84,9 @@ type UploadableFile = {
  * @param docs - Lista de documentos enviados.
  */
 const getDocumentStatusSummary = (docs: DocumentoEnviado[]): { status: DocumentoStatus, count: number } => {
+  if (docs.length === 0) return { status: 'Recusado', count: 0 }; // Considera "Recusado" se não houver documentos
   if (docs.some(d => d.status === 'Recusado')) return { status: 'Recusado', count: docs.filter(d => d.status === 'Recusado').length };
-  if (docs.some(d => d.status === 'Pendente')) return { status: 'Pendente', count: docs.filter(d => d.status === 'Pendente').length };
-  if (docs.length > 0) return { status: 'Aprovado', count: docs.length };
-  return { status: 'Pendente', count: 0 }; // Nenhum documento enviado ainda
+  return { status: 'Aprovado', count: docs.length };
 };
 
 /**
@@ -94,10 +96,9 @@ const getDocumentStatusSummary = (docs: DocumentoEnviado[]): { status: Documento
  */
 const getCompanyDocStatus = (companyCnpj: string): DocumentoStatus => {
   const companyBeneficiarios = mockBeneficiarios.filter(b => b.cnpj === companyCnpj);
+  if (companyBeneficiarios.length === 0 || companyBeneficiarios.some(b => b.documentos.length === 0)) return 'Recusado';
   if (companyBeneficiarios.some(b => b.documentos.some(d => d.status === 'Recusado'))) return 'Recusado';
-  if (companyBeneficiarios.some(b => b.documentos.some(d => d.status === 'Pendente'))) return 'Pendente';
-  if (companyBeneficiarios.every(b => b.documentos.length > 0 && b.documentos.every(d => d.status === 'Aprovado'))) return 'Aprovado';
-  return 'Pendente'; // Se houver beneficiários sem documentos ou com status misto sem recusa/pendência explícita
+  return 'Aprovado';
 };
 
 /**
@@ -173,8 +174,8 @@ export default function Documentos() {
 
   // Para usuários que não são 'cadastro' e têm mais de uma empresa,
   // a tela de seleção é a primeira coisa a ser mostrada.
-  if (user?.profile !== 'cadastro' && user && user.companies.length > 1 && !selectedCompany) {
-    return <TelaSelecaoEmpresa onSelectEmpresa={selectCompany} />;
+  if (user && (user.profile === 'cadastro' || user.companies.length > 1) && !selectedCompany) {
+    return <TelaSelecaoEmpresa onSelectEmpresa={selectCompany} onVoltar={() => navigate(-1)} />;
   }
 
   if (selectedBeneficiario) {
@@ -182,6 +183,7 @@ export default function Documentos() {
               beneficiario={selectedBeneficiario} 
               onVoltar={() => setSelectedBeneficiario(null)} 
               setBeneficiarios={setBeneficiarios}
+              userProfile={user?.profile as 'cadastro' | 'empresa' | undefined}
             />;
   }
 
@@ -236,9 +238,6 @@ export default function Documentos() {
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground">Filtrar por status:</span>
             <Button size="sm" variant={statusFilter === 'Todos' ? 'secondary' : 'outline'} onClick={() => setStatusFilter('Todos')}>Todos</Button>
-            <Button size="sm" variant={statusFilter === 'Pendente' ? 'secondary' : 'outline'} onClick={() => setStatusFilter('Pendente')} className="flex items-center gap-1.5">
-              <ShieldAlert className="h-4 w-4" /> Pendentes
-            </Button>
             <Button size="sm" variant={statusFilter === 'Recusado' ? 'destructive' : 'outline'} onClick={() => setStatusFilter('Recusado')} className="flex items-center gap-1.5">
               <ShieldX className="h-4 w-4" /> Recusados
             </Button>
@@ -255,38 +254,49 @@ export default function Documentos() {
             <TableHeader>
               <TableRow>
                 <TableHead>Beneficiário</TableHead>
-                {isShowingAll && (
-                  <TableHead>Empresa</TableHead>
-                )}
-                <TableHead>CPF</TableHead>
-                <TableHead className="text-center">Status dos Documentos</TableHead>
+                {isShowingAll && <TableHead>Empresa</TableHead>}
+                <TableHead>Vigência</TableHead>
+                <TableHead className="text-center w-[220px]">
+                  Status dos Documentos
+                </TableHead>
                 <TableHead className="text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredBeneficiarios.length > 0 ? (
-                filteredBeneficiarios.map(b => (
-                  <TableRow key={b.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelectedBeneficiario(b)}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" /> {b.nome}
-                      </div>
-                    </TableCell>
-                    {isShowingAll && (
-                      <TableCell>{b.nomeEmpresa}</TableCell>
-                    )}
-                    <TableCell>{b.cpf}</TableCell>
-                    <TableCell className="text-center">
-                      <StatusBadge statusInfo={getDocumentStatusSummary(b.documentos)} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="outline" size="sm">Gerenciar</Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filteredBeneficiarios.map(b => {
+                  const statusInfo = getDocumentStatusSummary(b.documentos);
+                  const isAprovado = statusInfo.status === 'Aprovado';
+                  return (
+                    <TableRow 
+                      key={b.id} 
+                      className={!isAprovado ? "cursor-pointer hover:bg-muted/50" : ""} 
+                      onClick={!isAprovado ? () => setSelectedBeneficiario(b) : undefined}
+                    >
+                      <TableCell className="font-medium">
+                        <div>{b.nome}</div>
+                        <div className="text-xs text-muted-foreground">{b.cpf}</div>
+                      </TableCell>
+                      {isShowingAll && <TableCell>{b.nomeEmpresa}</TableCell>}
+                      <TableCell>
+                        {b.plano?.inicioVigencia ? new Date(b.plano.inicioVigencia).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'N/A'}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <StatusBadge statusInfo={statusInfo} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isAprovado ? (
+                          <Button variant="ghost" size="sm" disabled className="text-green-600 cursor-default hover:bg-transparent hover:text-green-600"><CheckCircle2 className="mr-2 h-4 w-4" /> Aprovado</Button>
+                        ) : (
+                          <Button variant="outline" size="sm">Gerenciar</Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               ) : (
                 <TableRow>
-                  <TableCell colSpan={isShowingAll ? 5 : 4} className="h-24 text-center">
+                  <TableCell colSpan={isShowingAll ? 5 : 5} className="h-24 text-center">
                     Nenhum beneficiário corresponde à sua busca.
                   </TableCell>
                 </TableRow>
@@ -314,10 +324,11 @@ const mockAllCompanies = [
   { id: '3', name: 'Empresa C', cnpj: '77.888.999/0001-00' },
 ];
 
-function TelaSelecaoEmpresa({ onSelectEmpresa }: { onSelectEmpresa: (empresa: any) => void; }) {
+function TelaSelecaoEmpresa({ onSelectEmpresa, onVoltar }: { onSelectEmpresa: (empresa: any) => void; onVoltar: () => void; }) {
   const { user } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [allCompanies, setAllCompanies] = useState<(any & { docStatus: DocumentoStatus })[]>([]);
+  const navigate = useNavigate();
 
   // Simula a busca de todas as empresas para o perfil de cadastro
   useEffect(() => {
@@ -379,15 +390,25 @@ function TelaSelecaoEmpresa({ onSelectEmpresa }: { onSelectEmpresa: (empresa: an
           </Table>
         </div>
       </CardContent>
+      <CardFooter>
+        <Button variant="outline" onClick={onVoltar}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+        </Button>
+      </CardFooter>
     </Card>
   );
 }
 
 // --- TELA DE GERENCIAMENTO (TELA 2) ---
 
-type TelaGerenciamentoProps = { beneficiario: Beneficiario; onVoltar: () => void; setBeneficiarios: React.Dispatch<React.SetStateAction<Beneficiario[]>> };
+type TelaGerenciamentoProps = { 
+  beneficiario: Beneficiario; 
+  onVoltar: () => void; 
+  setBeneficiarios: React.Dispatch<React.SetStateAction<Beneficiario[]>>;
+  userProfile?: 'cadastro' | 'empresa';
+};
 
-function TelaGerenciamento({ beneficiario, onVoltar, setBeneficiarios }: TelaGerenciamentoProps) {
+function TelaGerenciamento({ beneficiario, onVoltar, setBeneficiarios, userProfile }: TelaGerenciamentoProps) {
   const [files, setFiles] = useState<UploadableFile[]>([]);
   const [documentos, setDocumentos] = useState<DocumentoEnviado[]>(beneficiario.documentos);
   const { toast } = useToast();
@@ -421,8 +442,8 @@ function TelaGerenciamento({ beneficiario, onVoltar, setBeneficiarios }: TelaGer
               const newDoc: DocumentoEnviado = {
                 id: Date.now(),
                 nome: f.file.name, 
-                dataEnvio: new Date().toISOString().split('T')[0],
-                status: 'Pendente',
+                dataEnvio: new Date().toISOString().split('T')[0], // Simula data de envio
+                status: 'Aprovado', // Status inicial é Aprovado
               };
               setDocumentos(prevDocs => [newDoc, ...prevDocs]);
               return { ...f, progress: 100, status: 'success' };
@@ -477,7 +498,12 @@ function TelaGerenciamento({ beneficiario, onVoltar, setBeneficiarios }: TelaGer
           </Button>
           <div>
             <CardTitle className="text-2xl">Documentos de: {beneficiario.nome}</CardTitle>
-            <CardDescription>CPF: {beneficiario.cpf}</CardDescription>
+            <CardDescription>
+              CPF: {beneficiario.cpf}
+              {beneficiario.plano?.inicioVigencia && (
+                <span className="ml-4">Vigência: {new Date(beneficiario.plano.inicioVigencia).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</span>
+              )}
+            </CardDescription>
           </div>
         </div>
       </CardHeader>
@@ -537,7 +563,7 @@ function TelaGerenciamento({ beneficiario, onVoltar, setBeneficiarios }: TelaGer
               </TableHeader>
               <TableBody>
                 {documentos.length > 0 ? (
-                  documentos.map(d => <DocumentRow key={d.id} doc={d} onAction={handleDocAction} />)
+                  documentos.map(d => <DocumentRow key={d.id} doc={d} onAction={handleDocAction} userProfile={userProfile} />)
                 ) : (
                   <TableRow><TableCell colSpan={4} className="h-24 text-center">Nenhum documento enviado para este beneficiário.</TableCell></TableRow>
                 )}
@@ -557,36 +583,40 @@ function TelaGerenciamento({ beneficiario, onVoltar, setBeneficiarios }: TelaGer
 
 function StatusBadge({ statusInfo }: { statusInfo: { status: DocumentoStatus, count: number } }) {
   const { status, count } = statusInfo;
-  const variants: Record<DocumentoStatus, "default" | "destructive" | "secondary"> = {
-    Aprovado: "default",
-    Recusado: "destructive",
-    Pendente: "secondary",
+  
+  const baseClasses = "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold w-fit mx-auto";
+  const colorClasses: Record<DocumentoStatus, string> = {
+    Aprovado: "bg-green-100 text-green-800",
+    Recusado: "bg-red-100 text-red-800",
   };
+
   const icons: Record<DocumentoStatus, React.ReactNode> = {
-    Aprovado: <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />,
-    Recusado: <ShieldX className="h-3.5 w-3.5 mr-1.5" />,
-    Pendente: <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />,
+    Aprovado: <ShieldCheck className="h-3 w-3" />,
+    Recusado: <ShieldX className="h-3 w-3" />,
   };
   const textMap: Record<DocumentoStatus, string> = {
     Aprovado: "Aprovado",
-    Recusado: count > 1 ? `${count} Recusado(s)` : "Recusado",
-    Pendente: count > 0 ? (count > 1 ? `${count} Pendente(s)` : "Pendente") : (status === 'Pendente' ? 'Pendente' : 'Nenhum documento'),
+    Recusado: count > 0 ? (count > 1 ? `${count} Recusado(s)` : "Recusado") : 'Nenhum documento',
   };
 
   return (
-    <Badge variant={variants[status]} className={`flex items-center justify-center w-fit mx-auto text-xs`}>
+    <div className={`${baseClasses} ${colorClasses[status]}`}>
       {icons[status]}
       {textMap[status]}
-    </Badge>
+    </div>
   );
 }
 
-function DocumentRow({ doc, onAction }: { doc: DocumentoEnviado; onAction: (docId: number, status: DocumentoStatus, motivo?: string) => void; }) {
+function DocumentRow({ doc, onAction, userProfile }: { doc: DocumentoEnviado; onAction: (docId: number, status: DocumentoStatus, motivo?: string) => void; userProfile?: 'cadastro' | 'empresa' }) {
   return (
     <TableRow className="hover:bg-muted/50">
-      <TableCell className="font-medium">{doc.nome}</TableCell>
+      <TableCell className="font-medium">
+        {doc.nome}        
+      </TableCell>
       <TableCell>{new Date(doc.dataEnvio).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</TableCell>
-      <TableCell className="text-center"><StatusBadge statusInfo={{ status: doc.status, count: 1 }} /></TableCell>
+      <TableCell className="text-center">
+        <StatusBadge statusInfo={{ status: doc.status, count: 1 }} />
+      </TableCell>
       <TableCell className="text-right">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -600,15 +630,24 @@ function DocumentRow({ doc, onAction }: { doc: DocumentoEnviado; onAction: (docI
             <DropdownMenuItem disabled={!doc.url} onClick={() => window.open(doc.url, '_blank')}>
               <Eye className="mr-2 h-4 w-4" /> Visualizar
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-blue-600 focus:text-blue-700 dark:text-blue-400 dark:focus:text-blue-500" onClick={() => onAction(doc.id, 'Aprovado')}>
-              <ThumbsUp className="mr-2 h-4 w-4" /> Aprovar
-            </DropdownMenuItem>
-            <DialogRecusarDocumento doc={doc} onConfirm={(motivo) => onAction(doc.id, 'Recusado', motivo)}>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:text-red-700 dark:text-red-400 dark:focus:text-red-500">
-                <ThumbsDown className="mr-2 h-4 w-4" /> Recusar
-              </DropdownMenuItem>
-            </DialogRecusarDocumento>
+            {doc.status === 'Recusado' && doc.motivoRecusa && (
+              <DialogVerJustificativa doc={doc}>
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}><AlertCircle className="mr-2 h-4 w-4 text-yellow-500" /> Ver Justificativa</DropdownMenuItem>
+              </DialogVerJustificativa>
+            )}
+            {userProfile === 'cadastro' && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-blue-600 focus:text-blue-700 dark:text-blue-400 dark:focus:text-blue-500" onClick={() => onAction(doc.id, 'Aprovado')}>
+                  <ThumbsUp className="mr-2 h-4 w-4" /> Aprovar
+                </DropdownMenuItem>
+                <DialogRecusarDocumento doc={doc} onConfirm={(motivo) => onAction(doc.id, 'Recusado', motivo)}>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-red-600 focus:text-red-700 dark:text-red-400 dark:focus:text-red-500">
+                    <ThumbsDown className="mr-2 h-4 w-4" /> Recusar
+                  </DropdownMenuItem>
+                </DialogRecusarDocumento>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </TableCell>
@@ -647,6 +686,35 @@ function DialogRecusarDocumento({ doc, onConfirm, children }: { doc: DocumentoEn
         <DialogFooter>
           <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
           <Button type="button" onClick={handleConfirm} disabled={!motivo.trim()}>Confirmar Recusa</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DialogVerJustificativa({ doc, children }: { doc: DocumentoEnviado, children: React.ReactNode }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        {children}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Justificativa de Recusa</DialogTitle>
+          <DialogDescription>
+            Motivo pelo qual o documento <span className="font-semibold text-foreground">{doc.nome}</span> foi recusado.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="my-4 p-4 border-l-4 border-destructive bg-destructive/10 rounded-r-lg">
+          <p className="text-sm text-destructive-foreground">{doc.motivoRecusa}</p>
+        </div>
+        <DialogDescription>
+          Por favor, corrija o documento e envie-o novamente na área de upload.
+        </DialogDescription>
+        <DialogFooter className="sm:justify-end">
+          <DialogClose asChild>
+            <Button type="button">Entendido</Button>
+          </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>
