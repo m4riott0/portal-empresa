@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/Dashboard"; // This line is already correct.
 import Beneficiarios from "./pages/Beneficiarios";
 import NotFound from "./pages/NotFound";
 import { Sidebar } from "./components/layout/Sidebar";

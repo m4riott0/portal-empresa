@@ -201,7 +201,6 @@ export default function Documentos() {
 
   return (
     <div className="space-y-6">
-      {/* Para o perfil de cadastro, a seleção de empresa é um filtro opcional */}
       {user?.profile === 'cadastro' && (
         <Card className="w-full max-w-6xl mx-auto">
           <CardHeader>
