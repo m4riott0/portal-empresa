@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCap
 import { Progress } from "@/components/ui/progress";
 import {
   UploadCloud, FileText, X, CheckCircle2, AlertCircle, Loader2, Paperclip,
-  ArrowLeft, Search, User, ShieldCheck, ShieldAlert, ShieldX, ThumbsUp, ThumbsDown, Eye, MoreVertical
+  ArrowLeft, Search, User, ShieldCheck, ShieldAlert, ShieldX, ThumbsUp, ThumbsDown, Eye, MoreVertical,
+  Clock
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose
@@ -30,7 +31,7 @@ import { useNavigate } from "react-router-dom";
 
 // --- TIPOS E DADOS MOCKADOS (REUTILIZANDO E ADAPTANDO DE BENEFICIARIOS.TSX) ---
 
-type DocumentoStatus = 'Aprovado' | 'Recusado';
+type DocumentoStatus = 'Aprovado' | 'Recusado' | 'EmAnalise' | 'Pendente';
 
 type DocumentoEnviado = {
   id: number;
@@ -56,16 +57,23 @@ const mockBeneficiarios: Beneficiario[] = [
   { id: 1, nome: 'João da Silva', cpf: '123.456.789-01', statusUsuario: 'Ativo', cnpj: '11.222.333/0001-44', documentos: [
     { id: 101, nome: 'documentacao_joao_v1.pdf', dataEnvio: '2023-10-15', status: 'Aprovado', url: '#' },
   ], plano: { inicioVigencia: '2023-01-15' }},
+
+
   { id: 2, nome: 'Maria Oliveira', cpf: '987.654.321-09', statusUsuario: 'Ativo', cnpj: '11.222.333/0001-44', documentos: [
     { id: 201, nome: 'docs_maria_v1.pdf', dataEnvio: '2023-11-01', status: 'Recusado', motivoRecusa: 'Assinatura no RG está borrada.', url: '#' }
   ], plano: { inicioVigencia: '2022-11-01' }},
+  
+
   { 
-    id: 4, nome: 'Juliana Alves', cpf: '444.555.666-77', statusUsuario: 'Ativo', cnpj: '44.555.666/0001-77', 
-    documentos: [
-      { id: 301, nome: 'documentos_completos_juliana.pdf', dataEnvio: '2023-12-01', status: 'Aprovado' }
-    ], 
-    plano: { inicioVigencia: '2024-03-10' }
+    id: 4, nome: 'Ana Souza', cpf: '555.666.777-88', statusUsuario: 'Ativo', cnpj: '44.555.666/0001-77', documentos: [
+      { id: 401, nome: 'documentos_ana.pdf', dataEnvio: '2023-12-05', status: 'Pendente', url: '#' }
+    ], plano: { inicioVigencia: '2024-01-05' }
   },
+  
+  
+  { id: 3, nome: 'Carlos Pereira', cpf: '111.222.333-44', statusUsuario: 'Ativo', cnpj: '11.222.333/0001-44', documentos: [
+    { id: 301, nome: 'documentos_carlos_v1.pdf', dataEnvio: '2023-09-20', status: 'EmAnalise', motivoRecusa: 'Foto do comprovante de residência está ilegível.', url: '#' },
+  ], plano: { inicioVigencia: '2023-06-20' }},
 ];
 
 type UploadStatus = 'pending' | 'uploading' | 'success' | 'error';
@@ -86,6 +94,8 @@ type UploadableFile = {
 const getDocumentStatusSummary = (docs: DocumentoEnviado[]): { status: DocumentoStatus, count: number } => {
   if (docs.length === 0) return { status: 'Recusado', count: 0 }; // Considera "Recusado" se não houver documentos
   if (docs.some(d => d.status === 'Recusado')) return { status: 'Recusado', count: docs.filter(d => d.status === 'Recusado').length };
+  if(docs.some(d => d.status === 'Pendente')) return { status: 'Pendente', count: docs.filter(d => d.status === 'Pendente').length };
+  if(docs.some(d => d.status === 'EmAnalise')) return { status: 'EmAnalise', count: docs.filter(d => d.status === 'EmAnalise').length };
   return { status: 'Aprovado', count: docs.length };
 };
 
@@ -243,6 +253,12 @@ export default function Documentos() {
             </Button>
             <Button size="sm" variant={statusFilter === 'Aprovado' ? 'default' : 'outline'} onClick={() => setStatusFilter('Aprovado')} className="flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4" /> Aprovados
+            </Button>
+            <Button size="sm" variant={statusFilter === 'Pendente' ? 'secondary' : 'outline'} onClick={() => setStatusFilter('Pendente')} className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4" /> Pendentes
+            </Button>
+            <Button size="sm" variant={statusFilter === 'EmAnalise' ? 'secondary' : 'outline'} onClick={() => setStatusFilter('EmAnalise')} className="flex items-center gap-1.5">
+              <Eye className="h-4 w-4" /> Em Análise
             </Button>
           </div>
         </div>
@@ -586,17 +602,23 @@ function StatusBadge({ statusInfo }: { statusInfo: { status: DocumentoStatus, co
   
   const baseClasses = "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold w-fit mx-auto";
   const colorClasses: Record<DocumentoStatus, string> = {
-    Aprovado: "bg-green-100 text-green-800",
+    Aprovado: "bg-blue-100 text-blue-800",
     Recusado: "bg-red-100 text-red-800",
+    Pendente: "bg-yellow-100 text-yellow-800",
+    EmAnalise: "bg-blue-100 text-blue-800",
   };
 
   const icons: Record<DocumentoStatus, React.ReactNode> = {
     Aprovado: <ShieldCheck className="h-3 w-3" />,
     Recusado: <ShieldX className="h-3 w-3" />,
+    Pendente: <Clock className="h-3 w-3" />,
+    EmAnalise: <Eye className="h-3 w-3" />,
   };
   const textMap: Record<DocumentoStatus, string> = {
     Aprovado: "Aprovado",
     Recusado: count > 0 ? (count > 1 ? `${count} Recusado(s)` : "Recusado") : 'Nenhum documento',
+    Pendente: "Pendente",
+    EmAnalise: "Em Análise",
   };
 
   return (

@@ -129,57 +129,57 @@ export default function DocsFinaceiros() {
         {selectedCompany ? (
           <div className="border rounded-md">
             <Table className="w-full">
-              <TableHeader className="bg-muted/50">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>
-                    <Button variant="ghost" onClick={() => handleSort('nrNf')} className="px-0 hover:bg-transparent">
-                      Nr. NF <ArrowUpDown className={`ml-2 h-4 w-4 ${sortColumn === 'nrNf' ? 'text-foreground' : 'text-muted-foreground/50'}`} />
-                    </Button>
-                  </TableHead>
+              <TableHeader>
+                <TableRow>
                   <TableHead>
                     <Button variant="ghost" onClick={() => handleSort('competencia')} className="px-0 hover:bg-transparent">
                       Competência <ArrowUpDown className={`ml-2 h-4 w-4 ${sortColumn === 'competencia' ? 'text-foreground' : 'text-muted-foreground/50'}`} />
                     </Button>
                   </TableHead>
-                  <TableHead>
-                    <Button variant="ghost" onClick={() => handleSort('vencimento')} className="px-0 hover:bg-transparent">
-                      Vencimento <ArrowUpDown className={`ml-2 h-4 w-4 ${sortColumn === 'vencimento' ? 'text-foreground' : 'text-muted-foreground/50'}`} />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="text-right">
+                  <TableHead className="w-[180px] text-right">
                     <Button variant="ghost" onClick={() => handleSort('valor')} className="px-0 hover:bg-transparent">
                       Valor <ArrowUpDown className={`ml-2 h-4 w-4 ${sortColumn === 'valor' ? 'text-foreground' : 'text-muted-foreground/50'}`} />
                     </Button>
                   </TableHead>
-                  <TableHead className="text-center">
-                    <Button variant="ghost" onClick={() => handleSort('pago')} className="px-0 hover:bg-transparent justify-center w-full">
-                      Pago <ArrowUpDown className={`ml-2 h-4 w-4 ${sortColumn === 'pago' ? 'text-foreground' : 'text-muted-foreground/50'}`} />
+                  <TableHead className="w-[150px]">
+                    <Button variant="ghost" onClick={() => handleSort('vencimento')} className="px-0 hover:bg-transparent">
+                      Vencimento <ArrowUpDown className={`ml-2 h-4 w-4 ${sortColumn === 'vencimento' ? 'text-foreground' : 'text-muted-foreground/50'}`} />
                     </Button>
                   </TableHead>
-                  <TableHead className="text-center">
+                  <TableHead className="w-[140px] text-center">
                     <Button variant="ghost" onClick={() => handleSort('qtdeVidas')} className="px-0 hover:bg-transparent">
                       Qtde. Vidas <ArrowUpDown className={`ml-2 h-4 w-4 ${sortColumn === 'qtdeVidas' ? 'text-foreground' : 'text-muted-foreground/50'}`} />
                     </Button>
                   </TableHead>
-                  <TableHead className="text-center">Ações</TableHead>
+                  <TableHead className="w-[120px]">
+                    <Button variant="ghost" onClick={() => handleSort('nrNf')} className="px-0 hover:bg-transparent">
+                      Nr. NF <ArrowUpDown className={`ml-2 h-4 w-4 ${sortColumn === 'nrNf' ? 'text-foreground' : 'text-muted-foreground/50'}`} />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="w-[120px]">
+                    <Button variant="ghost" onClick={() => handleSort('pago')} className="px-0 hover:bg-transparent">
+                      Status <ArrowUpDown className={`ml-2 h-4 w-4 ${sortColumn === 'pago' ? 'text-foreground' : 'text-muted-foreground/50'}`} />
+                    </Button>
+                  </TableHead>
+                  <TableHead className="w-[100px] text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className="divide-y divide-border">
+              <TableBody>
                 {sortedNotasFiscais.map((nota) => (
                   <TableRow key={nota.nrNf} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">{nota.nrNf}</TableCell>
                     <TableCell className="text-muted-foreground">{nota.competencia}</TableCell>
-                    <TableCell>{new Date(nota.vencimento).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</TableCell>
                     <TableCell className="text-right font-mono">{nota.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                    <TableCell className="text-center">
+                    <TableCell>{new Date(nota.vencimento).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</TableCell>
+                    <TableCell className="text-center">{nota.qtdeVidas}</TableCell>
+                    <TableCell className="font-medium">{nota.nrNf}</TableCell>
+                    <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         nota.pago === 'SIM' 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-yellow-100 text-yellow-800'
                       }`}>{nota.pago === 'SIM' ? 'Pago' : 'Pendente'}</span>
                     </TableCell>
-                    <TableCell className="text-center">{nota.qtdeVidas}</TableCell>
-                    <TableCell className="flex justify-center items-center gap-1">
+                    <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
