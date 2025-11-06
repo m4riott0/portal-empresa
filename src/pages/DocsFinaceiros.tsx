@@ -57,35 +57,23 @@ export default function DocsFinaceiros() {
 
   const handleActionClick = (documento: string, nf: NotaFiscal) => {
     alert(`Simulando download/visualização de: ${documento} para a NF ${nf.nrNf}`);
-    // Aqui você implementaria a lógica real de download/visualização
   };
 
   const handleCompanyChange = (companyId: string) => {
-    if (!companyId) {
-      // Limpa a seleção se "Todas as empresas" for escolhido
-      selectCompany(null);
-      return;
-    }
+    if (!companyId) return selectCompany(null);
     const company = user?.companies.find(c => c.id === companyId);
-    if (company) {
-      selectCompany(company);
-    }
+    if (company) selectCompany(company);
   };
 
   const handleSort = (column: SortableColumns) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
+    setSortDirection(sortColumn === column && sortDirection === 'asc' ? 'desc' : 'asc');
+    setSortColumn(column);
   };
 
   const sortedNotasFiscais = useMemo(() => {
     const sorted = [...mockNotasFiscais].sort((a, b) => {
       const valA = a[sortColumn];
       const valB = b[sortColumn];
-
       if (sortColumn === 'vencimento') {
         return new Date(valA).getTime() - new Date(valB).getTime();
       }
@@ -94,7 +82,6 @@ export default function DocsFinaceiros() {
       }
       return (valA as number) - (valB as number);
     });
-
     return sortDirection === 'asc' ? sorted : sorted.reverse();
   }, [sortColumn, sortDirection]);
 

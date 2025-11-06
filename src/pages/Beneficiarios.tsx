@@ -307,55 +307,37 @@ type ModalState =
 
 export default function Beneficiarios() {
   const { user, selectedCompany, selectCompany } = useAuthStore();
+  const { toast } = useToast();
   const [beneficiarios, setBeneficiarios] = useState<Beneficiario[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilters, setStatusFilters] = useState<{ usuario: string[] }>({
-    usuario: [],
-  });
+  const [statusFilters, setStatusFilters] = useState<{ usuario: string[] }>({ usuario: [] });
   const [modalState, setModalState] = useState<ModalState>(null);
-  const [addingDependentTo, setAddingDependentTo] =
-    useState<Beneficiario | null>(null);
-  const { toast } = useToast();
+  const [addingDependentTo, setAddingDependentTo] = useState<Beneficiario | null>(null);
   const [loadingFichaId, setLoadingFichaId] = useState<number | null>(null);
-
-  // Estados para o modal de importação
   const [importFile, setImportFile] = useState<File | null>(null);
   const [isProcessingImport, setIsProcessingImport] = useState(false);
-  const [importResult, setImportResult] = useState<{
-    success: number;
-    errors: string[];
-  } | null>(null);
+  const [importResult, setImportResult] = useState<{ success: number; errors: string[] } | null>(null);
   const [selectedBeneficiarios, setSelectedBeneficiarios] = useState<Set<number>>(new Set());
- const [sortConfig, setSortConfig] = useState<{ key: keyof Beneficiario | 'dependentesCount' | 'inicioVigencia'; direction: 'ascending' | 'descending' } | null >(null);
-
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Beneficiario | 'dependentesCount' | 'inicioVigencia'; direction: 'ascending' | 'descending' } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   // --- EFEITOS ---
-  // Busca os beneficiários sempre que a empresa selecionada mudar.
+  // Busca beneficiários sempre que empresa ou perfil mudar
   const fetchBeneficiarios = useCallback(async () => {
     setLoading(true);
     try {
       if (selectedCompany) {
-        // Busca para uma empresa específica
-        console.log(
-          `Buscando beneficiários para a empresa: ${selectedCompany.name}`
-        );
-        await new Promise((resolve) => setTimeout(resolve, 500)); // Simula o delay da API
-        setBeneficiarios(
-          mockBeneficiarios.filter((b) => b.cnpj === selectedCompany.cnpj)
-        );
-      } else if (user?.profile === "cadastro") {
-        // Busca para todas as empresas (perfil cadastro)
-        console.log(`Buscando beneficiários para todas as empresas.`);
         await new Promise((resolve) => setTimeout(resolve, 500));
-        setBeneficiarios(mockBeneficiarios); // Em um caso real, a API retornaria todos
+        setBeneficiarios(mockBeneficiarios.filter((b) => b.cnpj === selectedCompany.cnpj));
+      } else if (user?.profile === "cadastro") {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        setBeneficiarios(mockBeneficiarios);
       } else {
         setBeneficiarios([]);
       }
-    } catch (error) {
-      console.error("Erro ao buscar beneficiários:", error);
+    } catch {
       toast({ variant: "destructive", title: "Erro ao buscar beneficiários." });
     } finally {
       setLoading(false);
@@ -363,36 +345,30 @@ export default function Beneficiarios() {
   }, [selectedCompany, toast, user?.profile]);
 
   useEffect(() => {
-    // Para o perfil de cadastro, começa com "todas as empresas"
-    // A verificação 'selectedCompany' evita um loop de renderização infinito.
     if (user?.profile === "cadastro" && selectedCompany) {
       selectCompany(null);
     } else if (user?.companies.length === 1) {
       selectCompany(user.companies[0]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.profile]);
+  }, [user?.profile, selectedCompany, selectCompany, user?.companies]);
 
   useEffect(() => {
     fetchBeneficiarios();
   }, [fetchBeneficiarios]);
 
   // --- MEMOIZAÇÃO E FILTROS ---
-  // Filtra os beneficiários com base na busca por nome e nos filtros de status.
-  const sortedAndFilteredBeneficiarios = useMemo(() => {
-    let filtered = beneficiarios.filter((b) => {
-      const nameMatch = b.nome.toLowerCase().includes(searchTerm.toLowerCase());
-      const statusUsuarioMatch =
-        statusFilters.usuario.length === 0 ||
-        statusFilters.usuario.includes(b.statusUsuario);
-      return nameMatch && statusUsuarioMatch;
-    });
-
-    if (sortConfig !== null) {
-      filtered.sort((a, b) => {
+  // Filtra e ordena beneficiários
+  const filteredBeneficiarios = useMemo(() => {
+    return beneficiarios
+      .filter((b) => {
+        const nameMatch = b.nome.toLowerCase().includes(searchTerm.toLowerCase());
+        const statusUsuarioMatch = statusFilters.usuario.length === 0 || statusFilters.usuario.includes(b.statusUsuario);
+        return nameMatch && statusUsuarioMatch;
+      })
+      .sort((a, b) => {
+        if (!sortConfig) return 0;
         let aValue: any;
         let bValue: any;
-
         if (sortConfig.key === 'dependentesCount') {
           aValue = a.dependentes.length;
           bValue = b.dependentes.length;
@@ -403,161 +379,98 @@ export default function Beneficiarios() {
           aValue = a[sortConfig.key as keyof Beneficiario];
           bValue = b[sortConfig.key as keyof Beneficiario];
         }
-
-        if (aValue < bValue) {
-          return sortConfig.direction === 'ascending' ? -1 : 1;
-        }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'ascending' ? 1 : -1;
-        }
+        if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
         return 0;
       });
-    }
-
-    return filtered;
   }, [beneficiarios, searchTerm, statusFilters, sortConfig]);
 
-  const filteredBeneficiarios = sortedAndFilteredBeneficiarios;
-
-  const totalPages = useMemo(() => {
-    return Math.ceil(filteredBeneficiarios.length / itemsPerPage);
-  }, [filteredBeneficiarios.length, itemsPerPage]);
-
+  const totalPages = Math.ceil(filteredBeneficiarios.length / itemsPerPage);
   const paginatedBeneficiarios = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredBeneficiarios.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredBeneficiarios, currentPage, itemsPerPage]);
 
-  useEffect(() => { setSelectedBeneficiarios(new Set()); setCurrentPage(1); }, [searchTerm, statusFilters, selectedCompany]);
+  useEffect(() => {
+    setSelectedBeneficiarios(new Set());
+    setCurrentPage(1);
+  }, [searchTerm, statusFilters, selectedCompany]);
 
   // --- HANDLERS DE EVENTOS ---
   const handleCompanyChange = (companyId: string) => {
-    if (!companyId) {
-      selectCompany(null);
-      return;
-    }
+    if (!companyId) return selectCompany(null);
     const company = user?.companies.find((c) => c.id === companyId);
-    if (company) {
-      selectCompany(company);
-    }
+    if (company) selectCompany(company);
   };
 
   // Salva (cria ou atualiza) um beneficiário.
   const handleSave = async (data: Beneficiario) => {
-    // A lógica aqui deve ser substituída pela chamada à sua API real.
     try {
       if (data.id) {
-        // Atualização
-        // TODO: Substituir a simulação abaixo pela chamada de API real para ATUALIZAR.
-        // Ex: await api.updateBeneficiario(data.id, data);
         await new Promise((resolve) => setTimeout(resolve, 500));
         toast({ title: "Beneficiário atualizado com sucesso!" });
       } else {
-        // Criação
-        const newBeneficiario = { ...data, id: Date.now() }; // Simula ID gerado pela API
-        // TODO: Substituir a simulação abaixo pela chamada de API real para CRIAR.
-        // Ex: const created = await api.createBeneficiario(newBeneficiario);
         await new Promise((resolve) => setTimeout(resolve, 500));
         toast({ title: "Novo funcionário adicionado com sucesso!" });
       }
-      fetchBeneficiarios(); // Re-busca os dados para garantir consistência
-      return true; // Indica sucesso
-    } catch (error) {
+      fetchBeneficiarios();
+      return true;
+    } catch {
       toast({ variant: "destructive", title: "Erro ao salvar beneficiário." });
-      return false; // Indica falha
+      return false;
     }
   };
 
   // Deleta um beneficiário.
   const handleDelete = async (id: number) => {
     try {
-      // TODO: Substituir a simulação abaixo pela chamada de API real para DELETAR.
-      // Ex: await api.deleteBeneficiario(id);
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Simula o delay da API
-      toast({
-        variant: "destructive",
-        title: "Beneficiário removido com sucesso!",
-      });
-      fetchBeneficiarios(); // Re-busca os dados para garantir consistência
-    } catch (error) {
-      console.error("Erro ao remover beneficiário:", error);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      toast({ variant: "destructive", title: "Beneficiário removido com sucesso!" });
+      fetchBeneficiarios();
+    } catch {
       toast({ variant: "destructive", title: "Erro ao remover beneficiário." });
     }
   };
 
   // Abre o modal para edição, preenchendo com os dados existentes.
-  const openManageModal = (
-    beneficiario: Beneficiario,
-    tab: "titular" | "dependentes" = "titular"
-  ) => {
+  const openManageModal = (beneficiario: Beneficiario, tab: "titular" | "dependentes" = "titular") => {
     setModalState({ type: "edit", beneficiario, defaultTab: tab });
   };
-
-  const openAddDependentModal = (beneficiario: Beneficiario) => {
-    // Este modal é aninhado, então não fecha o modal pai (BeneficiarioFormDialog)
-    setAddingDependentTo(beneficiario);
-  };
-
-  const openDeleteModal = (beneficiario: Beneficiario) => {
-    setModalState({ type: "delete", beneficiario });
-  };
+  const openAddDependentModal = (beneficiario: Beneficiario) => setAddingDependentTo(beneficiario);
+  const openDeleteModal = (beneficiario: Beneficiario) => setModalState({ type: "delete", beneficiario });
 
   // Lida com a mudança nos checkboxes de filtro.
-  const handleFilterChange = (
-    type: "usuario",
-    value: string,
-    checked: boolean
-  ) => {
+  const handleFilterChange = (type: "usuario", value: string, checked: boolean) => {
     setStatusFilters((prev) => {
       const currentFilters = new Set(prev[type]);
-      if (checked) {
-        currentFilters.add(value);
-      } else {
-        currentFilters.delete(value);
-      }
+      checked ? currentFilters.add(value) : currentFilters.delete(value);
       return { ...prev, [type]: Array.from(currentFilters) };
     });
   };
 
   const handleSort = (key: keyof Beneficiario | 'dependentesCount' | 'inicioVigencia') => {
-    let direction: 'ascending' | 'descending' = 'ascending';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
-      direction = 'descending';
-    }
+    const direction = sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending' ? 'descending' : 'ascending';
     setSortConfig({ key, direction });
   };
 
   const handleSuspend = async (ids: number[]) => {
-    // Lógica para suspender beneficiários
-    // TODO: Chamar API
     await new Promise(resolve => setTimeout(resolve, 500));
     toast({ title: `${ids.length} beneficiário(s) suspenso(s) com sucesso!` });
-    fetchBeneficiarios(); // Re-busca os dados
+    fetchBeneficiarios();
   };
   // Visualiza a ficha (PDF) de um beneficiário.
   const handleVisualizarFicha = async (beneficiario: Beneficiario) => {
     setLoadingFichaId(beneficiario.id);
     try {
-      // TODO: Substituir a simulação abaixo pela chamada de API real para buscar o PDF.
-      // Ex: const pdfBlob = await api.getFichaBeneficiario(beneficiario.id);
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simula o delay da API
-
-      // Simulação de um blob de PDF. A API real deve retornar algo similar.
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       const fakePdfContent = `Simulação de PDF para: ${beneficiario.nome}`;
       const pdfBlob = new Blob([fakePdfContent], { type: "application/pdf" });
-
-      // Cria uma URL para o Blob e abre em uma nova aba
       const pdfUrl = URL.createObjectURL(pdfBlob);
       window.open(pdfUrl, "_blank");
-      URL.revokeObjectURL(pdfUrl); // Libera a memória após a abertura
-
+      URL.revokeObjectURL(pdfUrl);
       toast({ title: "Ficha gerada com sucesso!" });
-    } catch (error) {
-      console.error("Erro ao visualizar a ficha:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao gerar a ficha do beneficiário.",
-      });
+    } catch {
+      toast({ variant: "destructive", title: "Erro ao gerar a ficha do beneficiário." });
     } finally {
       setLoadingFichaId(null);
     }
@@ -566,29 +479,13 @@ export default function Beneficiarios() {
   // Exporta o template CSV para importação
   const handleExportTemplate = () => {
     const headers = [
-      "nome",
-      "cpf",
-      "dataNascimento",
-      "sexo",
-      "nomeMae",
-      "email",
-      "telefone",
-      "rg",
-      "orgaoEmissor",
-      "nacionalidade",
-      "estadoCivil",
-      "profissao",
-      "cns",
-      "dataAdmissao",
+      "nome", "cpf", "dataNascimento", "sexo", "nomeMae", "email", "telefone", "rg", "orgaoEmissor", "nacionalidade", "estadoCivil", "profissao", "cns", "dataAdmissao"
     ];
     const csvContent = headers.join(";");
-    const blob = new Blob([`\uFEFF${csvContent}`], {
-      type: "text/csv;charset=utf-8;",
-    });
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "modelo_importacao_beneficiarios.csv");
+    link.href = URL.createObjectURL(blob);
+    link.download = "modelo_importacao_beneficiarios.csv";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -596,65 +493,36 @@ export default function Beneficiarios() {
 
   // Processa o arquivo CSV importado
   const handleProcessImport = async () => {
-    if (!importFile) {
-      toast({ variant: "destructive", title: "Nenhum arquivo selecionado." });
-      return;
-    }
-    if (!selectedCompany) {
-      toast({ variant: "destructive", title: "Nenhuma empresa selecionada." });
-      return;
-    }
-
+    if (!importFile) return toast({ variant: "destructive", title: "Nenhum arquivo selecionado." });
+    if (!selectedCompany) return toast({ variant: "destructive", title: "Nenhuma empresa selecionada." });
     setIsProcessingImport(true);
     setImportResult(null);
-
-    // Simulação de processamento de arquivo
     await new Promise((resolve) => setTimeout(resolve, 1500));
-
     const reader = new FileReader();
     reader.onload = async (event) => {
       const text = event.target?.result as string;
       const lines = text.split(/\r\n|\n/);
       const headers = lines[0].split(";").map((h) => h.trim());
-      const expectedHeaders = [
-        "nome",
-        "cpf",
-        "dataNascimento",
-        "sexo",
-        "nomeMae",
-      ]; // Apenas um exemplo de validação
-
+      const expectedHeaders = ["nome", "cpf", "dataNascimento", "sexo", "nomeMae"];
       if (!expectedHeaders.every((h) => headers.includes(h))) {
-        setImportResult({
-          success: 0,
-          errors: [
-            "O arquivo não corresponde ao modelo esperado. Verifique os cabeçalhos.",
-          ],
-        });
+        setImportResult({ success: 0, errors: ["O arquivo não corresponde ao modelo esperado. Verifique os cabeçalhos."] });
         setIsProcessingImport(false);
         return;
       }
-
       const newBeneficiarios: Beneficiario[] = [];
       const errors: string[] = [];
-
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i]) continue;
         const data = lines[i].split(";");
         const beneficiarioData: any = {};
-        headers.forEach((header, index) => {
-          beneficiarioData[header] = data[index];
-        });
-
-        // TODO: Adicionar validação mais robusta aqui (usando Zod, por exemplo)
+        headers.forEach((header, index) => { beneficiarioData[header] = data[index]; });
         if (!beneficiarioData.nome || !beneficiarioData.cpf) {
           errors.push(`Linha ${i + 1}: Nome e CPF são obrigatórios.`);
           continue;
         }
-
         newBeneficiarios.push({
           ...beneficiarioData,
-          id: Date.now() + i, // ID simulado
+          id: Date.now() + i,
           statusUsuario: "A Cadastrar",
           statusDocumento: "Suspenso",
           dependentes: 0,
@@ -662,78 +530,56 @@ export default function Beneficiarios() {
           nomeEmpresa: selectedCompany.name,
         });
       }
-
-      // TODO: Enviar 'newBeneficiarios' para a API
       setBeneficiarios((prev) => [...prev, ...newBeneficiarios]);
       setImportResult({ success: newBeneficiarios.length, errors });
       setIsProcessingImport(false);
-      toast({
-        title: "Importação processada!",
-        description: `${newBeneficiarios.length} funcionários adicionados.`,
-      });
-      // Não fecha o modal automaticamente para que o usuário veja o resultado
+      toast({ title: "Importação processada!", description: `${newBeneficiarios.length} funcionários adicionados.` });
     };
     reader.readAsText(importFile);
   };
 
   // Abre o modal para um novo beneficiário, com dados padrão.
   const openNewModal = () => {
-    const newBeneficiario: Beneficiario = {
-      id: 0,
-      nome: "",
-      cpf: "",
-      dataNascimento: undefined,
-      sexo: undefined,
-      rg: "",
-      orgaoEmissor: "",
-      nacionalidade: "BRASIL",
-      nomeMae: "",
-      estadoCivil: undefined,
-      telefone: "",
-      email: "",
-      profissao: "",
-      cns: "",
-      dataAdmissao: "",
-      endereco: {},
-      statusUsuario: "A Cadastrar",
-      statusDocumento: "Suspenso",
-      dependentes: [],
-      plano: {
-        adesao: true,
-        inicioVigencia: undefined,
-        cobertura: undefined,
-      },
-      cnpj: selectedCompany?.cnpj || "",
-      nomeEmpresa: selectedCompany?.name || "",
-    };
     setModalState({
       type: "edit",
-      beneficiario: newBeneficiario,
+      beneficiario: {
+        id: 0,
+        nome: "",
+        cpf: "",
+        dataNascimento: undefined,
+        sexo: undefined,
+        rg: "",
+        orgaoEmissor: "",
+        nacionalidade: "BRASIL",
+        nomeMae: "",
+        estadoCivil: undefined,
+        telefone: "",
+        email: "",
+        profissao: "",
+        cns: "",
+        dataAdmissao: "",
+        endereco: {},
+        statusUsuario: "A Cadastrar",
+        statusDocumento: "Suspenso",
+        dependentes: [],
+        plano: { adesao: true, inicioVigencia: undefined, cobertura: undefined },
+        cnpj: selectedCompany?.cnpj || "",
+        nomeEmpresa: selectedCompany?.name || "",
+      },
       defaultTab: "titular",
     });
   };
 
   const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      const allIds = new Set(paginatedBeneficiarios.map(b => b.id));
-      setSelectedBeneficiarios(allIds);
-    } else {
-      setSelectedBeneficiarios(new Set());
-    }
+    setSelectedBeneficiarios(checked ? new Set(paginatedBeneficiarios.map(b => b.id)) : new Set());
   };
-
   const handleSelectRow = (id: number, checked: boolean) => {
     setSelectedBeneficiarios(prev => {
       const newSet = new Set(prev);
-      if (checked) {
-        newSet.add(id);
-      } else {
-        newSet.delete(id);
-      }
+      checked ? newSet.add(id) : newSet.delete(id);
       return newSet;
     });
   };
-
   const isAllOnPageSelected = paginatedBeneficiarios.length > 0 && paginatedBeneficiarios.every(b => selectedBeneficiarios.has(b.id));
 
   return (

@@ -28,10 +28,11 @@ function TelaSelecaoEmpresa({ onSelectEmpresa, onVoltar }: { onSelectEmpresa: (e
  
   const filteredCompanies = useMemo(() => {
     if (!user?.companies) return [];
+    const term = searchTerm.toLowerCase();
     return user.companies.filter(
       (company) =>
-        company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        company.cnpj?.replace(/[^\d]/g, "").includes(searchTerm.replace(/[^\d]/g, ""))
+        company.name.toLowerCase().includes(term) ||
+        company.cnpj?.replace(/\D/g, "").includes(term.replace(/\D/g, ""))
     );
   }, [user?.companies, searchTerm]);
 
@@ -97,45 +98,33 @@ function TelaDetalhesCoparticipacao({ empresa, onVoltar }: { empresa: Company; o
   const dataCalculo = useMemo(() => new Date(), []);
 
   const filteredBeneficiarios = useMemo(() => {
+    const term = searchTerm.toLowerCase();
     return mockBeneficiariosCopart.filter(
       (b) =>
-        b.funcionario.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.contrato.includes(searchTerm)
+        b.funcionario.toLowerCase().includes(term) ||
+        b.contrato.includes(term)
     );
   }, [searchTerm]);
 
-  const totalCoparticipacao = useMemo(() => {
-    return filteredBeneficiarios.reduce((acc, b) => acc + b.valor, 0);
-  }, [filteredBeneficiarios]);
+  const totalCoparticipacao = useMemo(() =>
+    filteredBeneficiarios.reduce((acc, b) => acc + b.valor, 0),
+    [filteredBeneficiarios]
+  );
 
   const handleExportCSV = () => {
-    const headers = [
-      "Contrato",
-      "Funcionário",
-      "Vigência",
-      "Cancelado",
-      "Valor CPA a Faturar"
-    ];
-
+    const headers = ["Contrato", "Funcionário", "Vigência", "Cancelado", "Valor CPA a Faturar"];
     const rows = filteredBeneficiarios.map(b => [
       b.contrato,
-      `"${b.funcionario}"`, // Envolve em aspas para lidar com vírgulas no nome
+      `"${b.funcionario}"`,
       new Date(b.vigencia).toLocaleDateString('pt-BR'),
       b.cancelado ? 'Sim' : 'Não',
-      b.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', '') // Formato numérico brasileiro
+      b.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', '')
     ].join(';'));
-
-    const csvContent = [
-      headers.join(';'),
-      ...rows
-    ].join('\n');
-
-    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' }); // \uFEFF para BOM UTF-8 (ajuda o Excel)
+    const csvContent = [headers.join(';'), ...rows].join('\n');
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    const fileName = `coparticipacao_${empresa.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
-    link.setAttribute("download", fileName);
+    link.href = URL.createObjectURL(blob);
+    link.download = `coparticipacao_${empresa.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -233,25 +222,14 @@ export default function CopartPreFatura() {
   const { user, selectedCompany, selectCompany } = useAuthStore();
   const navigate = useNavigate();
 
-  // Define o estado inicial com base no perfil do usuário
-  const getInitialState = () => {
-    if (user?.profile !== 'cadastro' && user?.companies?.length === 1) {
-      return {
-        tela: 'detalhes' as const,
-        empresaSelecionada: user.companies[0],
-      };
-    }
-    return {
-      tela: 'lista' as const,
-      empresaSelecionada: null,
-    };
-  };
-
-  const [tela, setTela] = useState(getInitialState().tela);
-  const [empresaSelecionada, setEmpresaSelecionada] = useState<Company | null>(getInitialState().empresaSelecionada);
+  // Estado inicial baseado no perfil do usuário
+  const initialEmpresa = (user?.profile !== 'cadastro' && user?.companies?.length === 1)
+    ? user.companies[0]
+    : null;
+  const [tela, setTela] = useState(initialEmpresa ? 'detalhes' : 'lista');
+  const [empresaSelecionada, setEmpresaSelecionada] = useState<Company | null>(initialEmpresa);
 
   const handleSelectEmpresa = (empresa: Company) => {
-    // Atualiza a empresa selecionada globalmente também
     selectCompany(empresa);
     setEmpresaSelecionada(empresa);
     setTela('detalhes');
@@ -260,20 +238,12 @@ export default function CopartPreFatura() {
   const handleVoltarParaLista = () => {
     setEmpresaSelecionada(null);
     setTela('lista');
-    // Se o usuário não for do perfil "cadastro", volta para o dashboard
-    // pois a lista completa não é o comportamento padrão para ele.
-    if (user?.profile !== 'cadastro') {
-      navigate(-1);
-    }
+    if (user?.profile !== 'cadastro') navigate(-1);
   };
-
-  const handleVoltarParaDashboard = () => {
-    navigate(-1); // Volta para a tela anterior no histórico de navegação
-  };
+  const handleVoltarParaDashboard = () => navigate(-1);
 
   if (tela === 'detalhes' && empresaSelecionada) {
     return <TelaDetalhesCoparticipacao empresa={empresaSelecionada} onVoltar={handleVoltarParaLista} />;
   }
-
   return <TelaSelecaoEmpresa onSelectEmpresa={handleSelectEmpresa} onVoltar={handleVoltarParaDashboard} />;
 }

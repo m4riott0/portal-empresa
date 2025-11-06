@@ -146,11 +146,11 @@ function useBeneficiariosData() {
   }, [selectedCompany, user]);
 
   const filteredBeneficiarios = useMemo(() => {
+    const term = searchTerm.toLowerCase();
     return beneficiarios.filter(b => {
-      const searchMatch = b.nome.toLowerCase().includes(searchTerm.toLowerCase()) || b.cpf.replace(/[^\d]/g, "").includes(searchTerm.replace(/[^\d]/g, ""));
+      const searchMatch = b.nome.toLowerCase().includes(term) || b.cpf.replace(/\D/g, "").includes(term.replace(/\D/g, ""));
       if (statusFilter === 'Todos') return searchMatch;
-      const statusSummary = getDocumentStatusSummary(b.documentos);
-      return searchMatch && statusSummary.status === statusFilter;
+      return searchMatch && getDocumentStatusSummary(b.documentos).status === statusFilter;
     });
   }, [beneficiarios, searchTerm, statusFilter]);
   
@@ -366,10 +366,11 @@ function TelaSelecaoEmpresa({ onSelectEmpresa, onVoltar }: { onSelectEmpresa: (e
   const companiesToShow = user?.profile === 'cadastro' ? allCompanies : allCompanies.filter(c => user?.companies.some(uc => uc.id === c.id));
 
   const filteredCompanies = useMemo(() => {
+    const term = searchTerm.toLowerCase();
     return companiesToShow.filter(
       (company) =>
-        company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (company.cnpj || "").replace(/[^\d]/g, "").includes(searchTerm.replace(/[^\d]/g, ""))
+        company.name.toLowerCase().includes(term) ||
+        (company.cnpj || "").replace(/\D/g, "").includes(term.replace(/\D/g, ""))
     );
   }, [companiesToShow, searchTerm]);
 
