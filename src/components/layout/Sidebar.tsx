@@ -15,6 +15,7 @@ const menuItems = [
   { title: 'Documentos', icon: ClipboardList, path: '/docs'},
   { title: 'Copart. Pré-faturada', icon: Receipt, path: '/copart-pre-fatura' },
   { title: 'Documentos Financeiros', icon: FileText, path: '/docs-financeiros' },
+  { title: 'Permissão de Perfil', icon: FileText, path: '/permissao_perfil' },
 ];
 
 export function Sidebar() {

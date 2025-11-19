@@ -14,6 +14,7 @@ import { useAuthStore } from "./store/useAuthStore";
 import DocsFinaceiros from "./pages/DocsFinaceiros";
 import CopartPreFatura from "./pages/CopartPreFatura";
 import Documentos from "./pages/Documentos";
+import PermissaoPerfil from "./pages/PermissaoPerfil";
 
 const queryClient = new QueryClient();
 
@@ -98,11 +99,19 @@ const App = () => {
                 </ProtectedLayout>
               }
             />
-             <Route
+            <Route
               path="/docs"
               element={
                 <ProtectedLayout>
                   <Documentos/>
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path="/permissao_perfil"
+              element={
+                <ProtectedLayout>
+                  <PermissaoPerfil/>
                 </ProtectedLayout>
               }
             />

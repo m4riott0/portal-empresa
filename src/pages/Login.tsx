@@ -9,6 +9,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useToast } from "@/hooks/use-toast";
 import LoginHero from "@/assets/login-hero.png";
 import Logo from "@/assets/bensaude.png";
+import { usePermissionStore } from "@/store/permissionStore";
 
 // Subcomponente para os inputs do formulário, promovendo reutilização e limpeza do código.
 interface LoginInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -44,6 +45,12 @@ export default function Login() {
           title: "Login realizado com sucesso!",
           description: "Redirecionando para o dashboard...",
         });
+
+
+        //TODO Temporiamente colocarei aqui. porem futuramente deve ser tratado em outro local - hook de login
+
+        await usePermissionStore.getState().loadPermissions('ADMINISTRADOR');
+
         setTimeout(() => navigate("/dashboard"), 500);
       } else {
         toast({
