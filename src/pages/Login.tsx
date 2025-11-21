@@ -1,5 +1,5 @@
 import { useState, forwardRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Building, User, Lock, ArrowRight, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -108,7 +108,7 @@ export default function Login() {
                 label="Usuário"
                 icon={User}
                 type="text"
-                placeholder="usuario"
+                placeholder="Usuario"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
@@ -142,6 +142,15 @@ export default function Login() {
                 </>
               )}
             </Button>
+
+            <Link
+              to="/recuperar-senha"
+              // state={{ cpf }}
+              className="text-sm text-primary hover:text-primary-hover transition-colors block"
+            >
+              Esqueceu sua senha?
+            </Link>           
+
           </form>
         </motion.div>
       </div>
