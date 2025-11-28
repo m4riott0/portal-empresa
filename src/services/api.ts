@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { handleApiError } from './apiErrorHandler';
 
 const api = axios.create({
   // baseURL: import.meta.env.VITE_API_URL || 'http://localhost:7149/api',
@@ -7,6 +8,9 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+   validateStatus: (status) => {
+    return status >= 200 && status < 300; // qualquer coisa fora de 2xx vai para o catch
+  }
 });
 
 // Request interceptor
@@ -32,6 +36,11 @@ api.interceptors.response.use(
       localStorage.removeItem('auth-token');
       window.location.href = '/login';
     }
+
+    const data = error.response?.data;
+    if (data) handleApiError(data);
+
+
     return Promise.reject(error);
   }
 );
