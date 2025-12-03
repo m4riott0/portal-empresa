@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Receipt,
   ShieldX,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +18,7 @@ const menuItems = [
   { title: 'Copart. Pré-faturada', icon: Receipt, path: '/copart-pre-fatura' },
   { title: 'Documentos Financeiros', icon: FileText, path: '/docs-financeiros' },
   { title: 'Permissão de Perfil', icon: ShieldX, path: '/permissao_perfil' },
+  { title: 'Empresas', icon: Building2, path: '/empresas' },
 ];
 
 export function Sidebar() {

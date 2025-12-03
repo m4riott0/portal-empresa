@@ -192,7 +192,6 @@ export default function PermissaoPerfil() {
 
         setLoadingButton("alterar");
 
-
         if (inputNamePermissionRef.current.value.trim() === "") {
             toast({ title: "Erro", description: "O nome da permissão não pode estar vazio.", variant: "destructive" });
             setLoadingButton(null);
