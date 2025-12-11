@@ -136,7 +136,7 @@ export default function Empresas() {
             {/* DIALOG DE CADASTRAO/EDICAO */}
 
             <Dialog
-                open
+                // open
             //  onOpenChange={onOpenChange}
             >
                 <DialogContent

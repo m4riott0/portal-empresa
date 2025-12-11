@@ -19,6 +19,7 @@ const menuItems = [
   { title: 'Documentos Financeiros', icon: FileText, path: '/docs-financeiros' },
   { title: 'Permissão de Perfil', icon: ShieldX, path: '/permissao_perfil' },
   { title: 'Empresas', icon: Building2, path: '/empresas' },
+  { title: 'Usuários', icon: Users, path: '/usuarios' },
 ];
 
 export function Sidebar() {

@@ -3,7 +3,13 @@ import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner" // ajuste o path se necessário
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner"
+
+import {
+  HoverCard,
+  HoverCardTrigger,
+  HoverCardContent,
+} from "@/components/ui/hover-card" // ajuste o path conforme seu projeto
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -37,25 +43,58 @@ export interface ButtonProps
   asChild?: boolean
   isLoading?: boolean
   spinnerSize?: "sm" | "md" | "lg"
+
+  /** Texto exibido no HoverCard */
+  hoverText?: string
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
-    { className, variant, size, asChild = false, isLoading = false, spinnerSize = "sm", children, ...props },
+    {
+      className,
+      variant,
+      size,
+      asChild = false,
+      isLoading = false,
+      spinnerSize = "sm",
+      hoverText,
+      children,
+      ...props
+    },
     ref
   ) => {
     const Comp = asChild ? Slot : "button"
 
-    return (
+    const buttonElement = (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
-        // disabled={isLoading || props.disabled}
         {...props}
       >
-        {isLoading && <LoadingSpinner className="border-white border-t-transparent" size={spinnerSize} />}
+        {isLoading && (
+          <LoadingSpinner
+            className="border-white border-t-transparent"
+            size={spinnerSize}
+          />
+        )}
         {!isLoading && children}
       </Comp>
+    )
+
+    // Se não tiver hoverText, retorna o botão normal
+    if (!hoverText) return buttonElement
+
+    // Se hoverText existir, envelopa automaticamente no HoverCard
+    return (
+      <HoverCard openDelay={0} closeDelay={0}>
+        <HoverCardTrigger asChild>
+          {buttonElement}
+        </HoverCardTrigger>
+
+        <HoverCardContent className="w-60 text-sm">
+          {hoverText}
+        </HoverCardContent>
+      </HoverCard>
     )
   }
 )

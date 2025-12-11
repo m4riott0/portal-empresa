@@ -18,7 +18,8 @@ import CopartPreFatura from "./pages/CopartPreFatura";
 import Documentos from "./pages/Documentos";
 import PermissaoPerfil from "./pages/PermissaoPerfil";
 import PasswordRecovery from "./pages/PasswordRecovery";
-import Empresas from "./pages/Empresas";  
+import Empresas from "./pages/Empresas"; 
+import Usuarios from "./pages/Usuarios"; 
 
 const queryClient = new QueryClient();
 
@@ -131,6 +132,14 @@ const App = () => {
               element={
                 <ProtectedLayout>
                   <Empresas />
+                </ProtectedLayout>
+              }
+            />
+            <Route
+              path="/usuarios"
+              element={
+                <ProtectedLayout>
+                  <Usuarios />
                 </ProtectedLayout>
               }
             />
