@@ -8,9 +8,11 @@ export function handleApiError(errorResponse: any) {
     // errorResponse?.message ||
 
     const message =
-        (typeof errorResponse === "object") ? errorResponse.mensagem :
+        (typeof errorResponse === "object") ? errorResponse.message :
         "Ocorreu um erro inesperado.";
-
+    console.log(errorResponse);
+    console.log(errorResponse?.message);
+    console.log(message);
     toast({
         title: "Erro",
         description: message,

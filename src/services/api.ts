@@ -9,6 +9,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
    validateStatus: (status) => {
+    console.log(status)
     return status >= 200 && status < 300; // qualquer coisa fora de 2xx vai para o catch
   }
 });
@@ -37,9 +38,7 @@ api.interceptors.response.use(
       window.location.href = '/login';
     }
 
-    const data = error.response?.data;
-    if (data) handleApiError(data);
-
+    handleApiError(error.response?.data);
 
     return Promise.reject(error);
   }

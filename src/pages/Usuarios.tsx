@@ -1,63 +1,67 @@
-import InputWithDropdown from "@/components/InputWithDropdown";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DropdownItem } from "@/components/InputWithDropdown";
+import InputWithDropdown from "@/components/InputWithDropdown";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
+
 import api from "@/services/api";
+import { toast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronsUpDown, CirclePlus, MoveLeft, MoveRight, Pencil, Send, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { set, useForm, UseFormReturn } from "react-hook-form";
+import { Check, CirclePlus, MoveLeft, MoveRight, Pencil, Search, Send, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useForm, UseFormReturn } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
 import { z } from "zod";
+import { Usuario, Empresa } from "@/types";
+import { normalizeValue } from "@/utils";
+
+// PERFILS QUE ACESSARA ESTA TELA:    ADMINISTRADOR | COMERCIAL | ADMINISTRADOR DE RECURSOS HUMANOS - RH
 
 
+// TODO : IMPLEMENTAR OS FILTROS DE NOME E EMPRESA NA TABELA
+// TODO : IMPLEMENTAR A FUNCAO DE ENVIAR EMAIL CREDENCIAIS
+// TODO : VALIDAR SE O USUARIO LOGADO TEM PERFIL PARA ACESSAR ESTA TELA
 
-type Usuario = {
-    cd_conta: number,
-    nm_usuario: string,
-    nm_operador: string,
-    cd_tipo_perfil: number,
-    cd_empresa_bs: number,
-    sn_ativo: string
-}
-
-type Empresa = {
-    cd_empresa: number,
-    ds_empresa: string,
-}
+// TODO : AO CARREGAR A GRID VERIFICA SE UM DOS USUARIOS É UM ADMINISTRADOR - DESABILITA A INATIVACAO DESTE USUARIO
 
 export default function Usuarios() {
 
+    const navigate = useNavigate();
+
+    const [perfils, setPerfils] = useState<"ADMINISTRADOR" | "COMERCIAL" | "ADMINISTRADOR DE RECURSOS HUMANOS - RH">("ADMINISTRADOR");
+
     const [loading, setLoading] = useState(false);
-    const [loadingButton, setLoadingButton] = useState<"usuario" | "desativar" | "enviar" | null>(null);
-    const [openModal, setOpenModal] = useState<"usuario" | "desativar" | "enviar" | null>(null);
+    const [loadingButton, setLoadingButton] = useState<"usuario" | "ativar/inativar" | "enviar" | null>(null);
+    const [openModal, setOpenModal] = useState<"empresa" | "usuario" | "ativar/inativar" | "enviar" | null>("empresa");
 
-    const [usuario, setUsuario] = useState<Usuario | null>(null)
+    const [codPlano, setCodPlano] = useState<number | string | null>(null);
+    const [empresas, setEmpresas] = useState<Empresa[]>([]);
+    const empresa = empresas.find(emp => emp.cd_plano === codPlano);
+
+    const [usuario, setUsuario] = useState<Usuario>({} as Usuario);
     const [usuarios, setUsuarios] = useState<Usuario[] | []>([]);
-
-    const [empresas, setEmpresas] = useState<Empresa[] | []>([]);
 
     const [page, setPage] = useState(1);
     const [pageSize] = useState(20);
     const [totalPages, setTotalPages] = useState(1);
 
     useEffect(() => {
-        carregarUsuarios(page);
+        if (page !== 0)
+            carregarUsuarios(page);
     }, [page]);
 
     async function carregarUsuarios(pageNumber) {
 
         setLoading(true)
-        await api.get(`/Usuarios?page=${pageNumber}&pageSize=${pageSize}`).then(response => {
+
+        const filtroCodPlano = perfils == 'ADMINISTRADOR DE RECURSOS HUMANOS - RH' ? `&plano=${codPlano}` : '';
+
+        await api.get(`/Usuarios?page=${pageNumber}&pageSize=${pageSize}${filtroCodPlano}`).then(response => {
 
             const data = response.data.data;
 
@@ -84,38 +88,49 @@ export default function Usuarios() {
         if (page > 1) setPage(page - 1);
     }
 
+    const handleClickEmpresa = () => {
 
-    const handleNewUser = async () => {
+        if (empresa == null) {
+            toast({ variant: "destructive", title: "Empresa não selecionada." });
+            return
+        }
+
+        setOpenModal(null);
+        carregarUsuarios(1);
+    }
+
+    const handleUsuario = async (data: UsuarioFormData & { cod_plano: number }, isEdicao: boolean) => {
 
         setLoadingButton("usuario");
 
-        //TODO passar mais de 3 caracteres
+        const payload = {
+            nm_usuario: data.nome_login,
+            nm_operador: data.nome_completo,
+            ds_email: data.email,
+            ...(!isEdicao && { cd_plano: data.cod_plano }),
+        };
 
-        setEmpresas([
-            { cd_empresa: 1, ds_empresa: "Empresa A" },
-            { cd_empresa: 2, ds_empresa: "Empresa B" },
-            { cd_empresa: 4, ds_empresa: "Empresa B" },
-            { cd_empresa: 5, ds_empresa: "Empresa B" },
-            { cd_empresa: 6, ds_empresa: "Empresa B" },
-            { cd_empresa: 7, ds_empresa: "Empresa B" },
-            { cd_empresa: 8, ds_empresa: "Empresa B" },
-            { cd_empresa: 9, ds_empresa: "Empresa B" },
-            { cd_empresa: 3, ds_empresa: "Empresa C" },
-        ])
-        // await api.get(`/Empresa?page=1&pageSize=100`).then(response => {
-        //     setEmpresas(response.data.data);
-        // })
-        //     .finally(() => { setLoadingButton(null); });
+        if (isEdicao) {
+            await api.put(`/Usuarios/${usuario.cd_conta}`, payload).finally(() => { setLoadingButton(null) });
+            toast({ title: "Usuário atualizado com sucesso." });
+        } else {
+            await api.post('/Usuarios', payload).finally(() => { setLoadingButton(null) });
+            toast({ title: "Usuário cadastrado com sucesso." });
+        }
 
-        setUsuario(null);
-        setOpenModal("usuario");
+        carregarUsuarios(1);
+        setOpenModal(null);
     };
 
-    const handleEdit = (data: UsuarioFormData) => {
-        console.log("Dados para EDIÇÃO:", data); // data incluirá o ID
-        // Chamada API: fetch('/api/empresas/' + data.id, { method: 'PUT', body: JSON.stringify(data) });
-    };
+    const handleAtivarInativarUsuario = async () => {
 
+        setLoadingButton("ativar/inativar");
+        await api.patch(`/Usuarios/${usuario.cd_conta}`, { sn_ativo: usuario.sn_ativo == 'N' ? 'S' : 'N' }).finally(() => { setLoadingButton(null) });
+
+        toast({ title: `Usuário ${usuario.sn_ativo == 'S' ? "inativado" : "ativado"} com sucesso.` });
+        carregarUsuarios(1);
+        setOpenModal(null);
+    }
 
     if (loading) {
         return (
@@ -125,9 +140,60 @@ export default function Usuarios() {
         );
     }
 
-
     return (
         <div className="space-y-8">
+
+            {/* DIALOG DE SELECAO DE EMPRESA  */}
+            {/* <Dialog
+                open={openModal == "empresa"}
+                onOpenChange={(isOpen) => {
+                    navigate("/dashboard");
+                    setOpenModal(null)
+                }}
+            >
+                <DialogContent
+                    onInteractOutside={(e) => e.preventDefault()}
+                >
+                    <DialogHeader>
+                        <DialogTitle>
+                            Selecione a empresa
+                        </DialogTitle>
+                    </DialogHeader>
+
+
+                    <Card>
+                        <CardHeader>
+                            <div className="flex flex-col gap-4">
+
+                                <Label>Razão Social</Label>
+                                <InputWithDropdown
+                                    value={codPlano}
+                                    onChange={(val) => setCodPlano(val)}
+                                    placeholder="PESQUISE PELA RAZÃO SOCIAL"
+                                    processar={async (valor: string, signal: AbortSignal) => {
+
+                                        // Fazer requisição à API para buscar empresas
+                                        const response = await api.get(`/Empresa?page=1&pageSize=20&DsRazaoSocial=${valor}`, { signal });
+                                        const empresasEncontradas = response.data.data;
+                                        setEmpresas(empresasEncontradas);
+                                        return empresasEncontradas?.map(item => ({ index: item.cd_plano, texto: item.ds_razao_social }));
+                                    }} />
+                            </div>
+                        </CardHeader>
+
+                        <CardContent>
+                            <Button
+                                className="mt-4 w-full"
+                                onClick={handleClickEmpresa}
+                            >
+                                Continuar
+                            </Button>
+
+                        </CardContent>
+                    </Card>
+
+                </DialogContent>
+            </Dialog> */}
 
             {/* CARD DA TABELA */}
             <Card className="w-full max-w-6xl mx-auto">
@@ -141,7 +207,11 @@ export default function Usuarios() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 pt-5">
-                    <Button className="btn-medical" onClick={handleNewUser} isLoading={loadingButton == "usuario"} disabled={loadingButton === "usuario"}>
+                    <Button className="btn-medical"
+                        onClick={() => {
+                            setUsuario(null);
+                            setOpenModal("usuario");
+                        }}>
                         <CirclePlus className="mr-2 h-4 w-4" /> Novo Usuário
                     </Button>
                     {
@@ -153,15 +223,35 @@ export default function Usuarios() {
                             ) :
                             (
                                 <>
-                                    <div className="relative flex-1 max-w-sm">
-                                        <search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                            placeholder="Pesquisar por nome..."
-                                            // onChange={handleChange}
-                                            className="pl-8"
-                                        />
-                                    </div>
+                                    <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                                        <div className="flex flex-col flex-1 max-w-sm">
+                                            {/* <Label>Nome de usuário</Label> */}
+                                            <div className="relative">
+                                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                                <Input
+                                                    placeholder="Pesquisar por nome de usuário..."
+                                                    className="pl-8"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div
+                                            className="flex-1 max-w-sm"
+                                        >
 
+                                            <InputWithDropdown
+                                                value={codPlano}
+                                                onChange={(item: DropdownItem) => setCodPlano(item.index)}
+                                                placeholder="Pesquise pela razão social"
+                                                processar={async (valor: string, signal: AbortSignal) => {
+
+                                                    // Fazer requisição à API para buscar empresas
+                                                    const response = await api.get(`/Empresa?page=1&pageSize=20&DsRazaoSocial=${valor}`, { signal });
+                                                    const empresasEncontradas = response.data.data;
+                                                    return empresasEncontradas?.map(item => ({ index: item.cd_plano, texto: item.ds_razao_social }));
+                                                }} />
+
+                                        </div>
+                                    </div>
 
                                     <div className="border rounded-md my-5 ">
                                         <Table className="w-full">
@@ -185,12 +275,11 @@ export default function Usuarios() {
                                                     <TableRow key={usuario.cd_conta} className="hover:bg-muted/50">
 
                                                         <TableCell className="text-muted-foreground items-center">
-                                                            {usuario.nm_operador} - {usuario.cd_tipo_perfil} <br />
-                                                            {/* {usuario.email} */}
-                                                            Email
+                                                            {usuario.nm_operador} <br />
+                                                            {usuario.ds_email}
                                                         </TableCell>
                                                         <TableCell className="text-muted-foreground items-center">
-                                                            {usuario.cd_empresa_bs}
+                                                            {usuario.ds_empresa}
                                                         </TableCell>
                                                         <TableCell className="text-muted-foreground text-center">
 
@@ -200,10 +289,11 @@ export default function Usuarios() {
                                                                 size="sm"
                                                                 hoverText={`${usuario.sn_ativo == 'S' ? "Ativar" : "Inativar"} usuário.`}
                                                                 onClick={() => {
-                                                                    setOpenModal("desativar")
+                                                                    setUsuario(usuario);
+                                                                    setOpenModal("ativar/inativar")
                                                                 }}
                                                             >
-                                                                {usuario.sn_ativo == 'S' ? (<Check className="h-4 w-4" />) : (<X className="h-4 w-4" />)}
+                                                                {usuario.sn_ativo == 'S' ? (<Check className="h-4 w-4 text-primary" />) : (<X className="h-4 w-4 text-danger" />)}
                                                             </Button>
 
                                                             <Button
@@ -222,16 +312,7 @@ export default function Usuarios() {
                                                                 size="sm"
                                                                 hoverText="Editar usuário."
                                                                 onClick={() => {
-                                                                    setUsuario(
-                                                                        {
-                                                                            nm_usuario: "Usuario X",
-                                                                            cd_empresa_bs: 5,
-                                                                            cd_conta: 9,
-                                                                            nm_operador: "vdd",
-                                                                            cd_tipo_perfil: 1,
-                                                                            sn_ativo: "S"
-                                                                        }
-                                                                    )
+                                                                    setUsuario(usuario);
                                                                     setOpenModal("usuario")
                                                                 }}
                                                             >
@@ -267,9 +348,36 @@ export default function Usuarios() {
                 </CardContent>
             </Card>
 
-            {/* DIALOG DE ATIVAR/DESATIVAR USUARIO */}
+            {/* DIALOG DE CADASTRAO/EDICAO USUARIO*/}
             <Dialog
-                open={openModal == "desativar"}
+                open={openModal == "usuario"}
+                onOpenChange={() => { setOpenModal(null) }}
+            >
+                <DialogContent
+                    className="sm:max-w-4xl max-h-[90vh] overflow-y-auto"
+                    onInteractOutside={(e) => e.preventDefault()}
+                >
+                    <DialogHeader>
+                        <DialogTitle>
+                            {usuario ? "Editar" : "Cadastrar"} usuário da empresa {empresa?.nm_fantasia}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <FormEmpresa
+                        initialData={usuario}
+                        onSubmit={handleUsuario}
+                        onCancel={() => { setOpenModal(null) }}
+                        loading={loadingButton == 'usuario'}
+                    />
+
+                </DialogContent>
+            </Dialog>
+
+
+
+            {/* DIALOG DE ATIVAR/INATIVAR USUARIO */}
+            <Dialog
+                open={openModal == "ativar/inativar"}
                 onOpenChange={() => { setOpenModal(null) }}
             >
                 <DialogContent
@@ -277,28 +385,26 @@ export default function Usuarios() {
                 >
                     <DialogHeader>
                         <DialogTitle>
-                            {usuario ? "Ativar" : "Inativar"} usuário
+                            {usuario.sn_ativo == 'N' ? "Ativar" : "Inativar"} usuário
                         </DialogTitle>
                     </DialogHeader>
 
 
                     <Card>
                         <CardHeader>
-                            <Label className="font-semibold">email de credenciais</Label>
-
-                            <span className="text-xs text-gray-500">
-                                Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It ha
+                            <span className="text-gray-500">
+                                O usuário <b>{usuario.nm_operador}</b> será {usuario.sn_ativo == 'N' ? "ativado" : "inativado"}
                             </span>
                         </CardHeader>
 
                         <CardContent>
                             <Button
                                 className="mt-4 w-full"
-                            // onClick={handleNewPermissions}
-                            // isLoading={loadingButton === "salvar"}
-                            // disabled={loadingButton === "salvar"}
+                                onClick={handleAtivarInativarUsuario}
+                                isLoading={loadingButton === "ativar/inativar"}
+                                disabled={loadingButton === "ativar/inativar"}
                             >
-                                Enviar
+                                {usuario.sn_ativo == 'N' ? "Ativar" : "Inativar"}
                             </Button>
 
                         </CardContent>
@@ -346,123 +452,91 @@ export default function Usuarios() {
                 </DialogContent>
             </Dialog>
 
-            {/* DIALOG DE CADASTRAO/EDICAO USUARIO*/}
-            <Dialog
-                // overflow-visible
-                open={openModal == "usuario"}
-                onOpenChange={() => { setOpenModal(null) }}
-            >
-                <DialogContent
-                    className="sm:max-w-4xl max-h-[90vh] overflow-y-auto"
-                    onInteractOutside={(e) => e.preventDefault()}
-                >
-                    <DialogHeader>
-                        <DialogTitle>
-                            {usuario ? "Editar Beneficiário" : "Novo Funcionário"}
-                        </DialogTitle>
-                    </DialogHeader>
 
-                    <FormEmpresa initialData={usuario} empresas={empresas} onSubmit={handleEdit} />
-
-                </DialogContent>
-            </Dialog>
-
-        </div>
+        </div >
     );
 }
 
-type Props = {
-    form: UseFormReturn<UsuarioFormData>;
-};
-
-
 // =======================================================
-// 1. ZOD SCHEMA E TIPAGEM
+// ZOD SCHEMA E TIPAGEM
 // =======================================================
 
-export const UsuarioSchema = z.object({
-    // ID é opcional no formulário (não é preenchido manualmente)
-    cod_usuario: z.string().optional(),
-    cod_empresa: z.string().optional(),
-    nome: z.string().min(2, "O nome deve ter no mínimo 2 caracteres."),
-    usuario: z.string().min(2, "O nome deve ter no mínimo 2 caracteres."),
-    email: z.string().email("Email inválido."),
-});
+export const createUsuarioSchema = (codPlano?: number | null) =>
+    z
+        .object({
+            cod_usuario: z.string().optional(),
+            nome_login: z
+                .string()
+                .min(3, "O nome para login deve ter no mínimo 3 caracteres.")
+                .max(100, "O nome para login deve ter no máximo 100 caracteres."),
+            nome_completo: z
+                .string()
+                .min(3, "O nome completo deve ter no mínimo 3 caracteres.")
+                .max(100, "O nome completo deve ter no máximo 100 caracteres."),
+            email: z
+                .string()
+                .email("Email inválido.")
+                .max(200, "O email deve ter no máximo 200 caracteres."),
+            empresa: z.string().optional(),
+        })
+        .refine(
+            (data) => {
+                return !!codPlano && !!data.empresa
+            },
+            {
+                message: "A empresa deve ser informada.",
+                path: ["empresa"],
+            }
+        );
 
+export type UsuarioFormData = z.infer<
+    ReturnType<typeof createUsuarioSchema>
+>;
 
-
-export type UsuarioFormData = z.infer<typeof UsuarioSchema>;
-
-// =======================================================
-// 2. INTERFACE DE PROPS
-// =======================================================
+// =====================
+// PROPS
+// =====================
 
 interface FormEmpresaProps {
-    empresas?: Empresa[];
     // initialData é opcional: se presente, é Edição; se não, é Cadastro.
-    // initialData?: UsuarioFormData;
     initialData?: Usuario | null;
     // Função para tratar o submit (recebe os dados validados)
-    onSubmit: (data: UsuarioFormData) => void;
+    onSubmit: (data: UsuarioFormData, isEditMode: boolean) => void;
     // Opcional: função para fechar o modal/dialog, se aplicável
     onCancel?: () => void;
+    loading?: boolean;
 }
 
+// =====================
+// COMPONENTE
+// =====================
 
-// =======================================================
-// 3. COMPONENTE REUTILIZÁVEL (FormEmpresa)
-// =======================================================
-
-export function FormEmpresa({ initialData, onSubmit, onCancel, empresas }: FormEmpresaProps) {
+export function FormEmpresa({ initialData, onSubmit, onCancel, loading }: FormEmpresaProps) {
 
     // 💡 Lógica para determinar o modo:
     const isEditMode = !!initialData?.cd_conta;
+    const [codPlano, setCodPlano] = useState<number>(initialData?.cd_plano || 0);
 
     const form = useForm<UsuarioFormData>({
-        // Usamos o EmpresaSchema para ambos, pois ele já espera o 'id' opcional.
-        resolver: zodResolver(UsuarioSchema),
-
+        resolver: zodResolver(createUsuarioSchema(codPlano)),
         // **Preenchimento Automático para Edição**
         defaultValues: {
-            // O RHF cuida de preencher 'id' e 'nome' se initialData for fornecido.
-            nome: initialData?.nm_operador || "",
-        }
+            nome_login: initialData?.nm_usuario || "",
+            nome_completo: initialData?.nm_operador || "",
+            email: initialData?.ds_email || "",
+            empresa: initialData?.ds_empresa || ""
+        },
+        mode: "onSubmit",
     });
 
-    const handleSubmit = (data: UsuarioFormData) => {
-        // Você pode fazer qualquer manipulação final aqui antes de chamar o prop onSubmit
-        onSubmit(data);
+    const handleSubmit = (data: UsuarioFormData & { cod_plano: number }) => {
+        data.cod_plano = codPlano;
+        onSubmit(data, isEditMode);
     };
 
-    function normalizeString(str: string) {
-        return str
-            .normalize("NFD")            // separa acentos
-            .replace(/[\u0300-\u036f]/g, "") // remove acentos
-            .toLowerCase();             // deixa tudo minúsculo
-    }
-
-    const [empresaSelecionada, setEmpresaSelecionada] = useState<number | string | null>(null);
-    console.log("empresaSelecionada:", empresaSelecionada);
-
-    const empresass = [
-        { index: 1, texto: "Empresa Alpha" },
-        { index: 2, texto: "Empresa Beta" },
-        { index: 3, texto: "Empresa Gama" },
-        { index: 4, texto: "Empresa Gama" },
-        { index: 5, texto: "Empresa Gama" },
-        { index: 6, texto: "Empresa Gama" },
-        { index: 7, texto: "Empresa Gama" },
-        { index: 8, texto: "Empresa Gama" },
-        { index: 9, texto: "Empresa Gama" },
-        { index: 10, texto: "Empresa Gama" },
-        { index: 11, texto: "Empresa Gama" },
-    ];
-
     return (
-
         <Form {...form} >
             <form
-                // **CORREÇÃO:** Conectando a função de submit do RHF
                 onSubmit={form.handleSubmit(handleSubmit)}
                 className="space-y-6 p-1"
             >
@@ -472,41 +546,49 @@ export function FormEmpresa({ initialData, onSubmit, onCancel, empresas }: FormE
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-                        {/* Campo Nome */}
+                        {/* CAMPO NOME DE LOGIN */}
                         <FormField
                             control={form.control}
-                            name="nome"
+                            name="nome_login"
                             render={({ field }) => (
                                 <FormItem className="lg:col-span-1">
-                                    <FormLabel>Nome de Usuário</FormLabel>
+                                    <FormLabel>Nome para login</FormLabel>
                                     <FormControl>
                                         <Input
-                                            placeholder="Ex: Ana."
+                                            placeholder="EX: ANA"
+                                            maxLength={100}
                                             {...field}
+                                            onChange={(e) => {
+                                                field.onChange(normalizeValue(e.target.value));
+                                            }}
                                         />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
-                        {/* Campo Nome de login */}
+                        {/* CAMPO NOME COMPLETO */}
                         <FormField
                             control={form.control}
-                            name="nome"
+                            name="nome_completo"
                             render={({ field }) => (
                                 <FormItem className="lg:col-span-2">
                                     <FormLabel>Nome Completo</FormLabel>
                                     <FormControl>
                                         <Input
-                                            placeholder="Ex: Ana Maria"
+                                            placeholder="EX: ANA MARIA"
+                                            maxLength={100}
                                             {...field}
+                                            onChange={(e) => {
+                                                field.onChange(normalizeValue(e.target.value));
+                                            }}
                                         />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
-                        {/* Campo Email */}
+                        {/* CAMPO EMAIL */}
                         <FormField
                             control={form.control}
                             name="email"
@@ -515,46 +597,57 @@ export function FormEmpresa({ initialData, onSubmit, onCancel, empresas }: FormE
                                     <FormLabel>Email de acesso do usuário</FormLabel>
                                     <FormControl>
                                         <Input
-                                            placeholder="Ex: bensaude@bensaude.com.br"
+                                            type="email"
+                                            maxLength={200}
+                                            placeholder="ex: bensaude@bensaude.com.br"
                                             {...field}
+                                            onChange={(e) => {
+                                                field.onChange(normalizeValue(e.target.value, "email"));
+                                            }}
                                         />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
-                        {/* SELECT DE EMPRESAS */}
 
+                        {/* SELECT DE EMPRESA */}
                         <FormField
-
                             control={form.control}
-                            name="cod_empresa"
+                            name="empresa"
                             render={({ field }) => (
                                 <FormItem className="lg:col-span-1">
-                                    <FormLabel>Empresa</FormLabel>
+                                    <FormLabel>Razão Social</FormLabel>
                                     <FormControl>
-                                      <InputWithDropdown
-                                        // itens={empresass}
-                                        value={empresaSelecionada}
-                                        onChange={(val) => setEmpresaSelecionada(val)}
-                                        placeholder="Selecione a empresa..."
-                                        processar={async (valor: string, signal: AbortSignal) => {
+                                        {isEditMode ? (<Input disabled value={initialData.ds_empresa} />) : (
+                                            <>
+                                                <InputWithDropdown
+                                                    value={codPlano}
+                                                    placeholder="PESQUISE PELA RAZÃO SOCIAL"
+                                                    onChange={(item: DropdownItem) => {
+                                                        // texto → formulário
+                                                        field.onChange(item.texto);
 
-                                            // Fazer requisição à API para buscar empresas
-                                            // const response = await api.get(`/Empresa?search=${valor}`, { signal });
-                                            // return response.data.data;
-                                            return empresass
-                                        }}
-                                    />
+                                                        // código → estado
+                                                        setCodPlano(Number(item.index));
+
+                                                        // limpa erro manualmente
+                                                        form.clearErrors("empresa");
+                                                    }}
+                                                    processar={async (valor: string, signal: AbortSignal) => {
+
+                                                        // Fazer requisição à API para buscar empresas
+                                                        const response = await api.get(`/Empresa?page=1&pageSize=20&DsRazaoSocial=${valor}`, { signal });
+                                                        const empresasEncontradas = response.data.data;
+                                                        return empresasEncontradas?.map(item => ({ index: item.cd_plano, texto: item.ds_razao_social }));
+                                                    }} />
+                                            </>
+                                        )}
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
-
-
-
-
                     </CardContent>
                 </Card>
 
@@ -570,8 +663,9 @@ export function FormEmpresa({ initialData, onSubmit, onCancel, empresas }: FormE
 
                     <Button
                         type="submit"
-                        // Desabilitar enquanto submete (opcional)
-                        disabled={form.formState.isSubmitting}
+                        disabled={loading}
+                        isLoading={loading}
+
                     >
                         {isEditMode ? "Salvar Alterações" : "Cadastrar"}
                     </Button>

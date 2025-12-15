@@ -13,25 +13,53 @@ import {
     FloatingPortal,
     size,
 } from "@floating-ui/react";
-import { set } from "react-hook-form";
 import { LoadingSpinner } from "./ui/LoadingSpinner";
+import { normalizeValue } from "@/utils/index";
+import { Search } from "lucide-react";
 
 // types
-type Itens = { index: number | string; texto: string };
+export interface DropdownItem { index: number | string; texto: string };
+
+//TODO documentar um exemplo de uso deste componente
 
 type Props = {
-    // itens: Itens[];
     value?: string | number | null;
-    onChange: (val: number | string) => void;
+    // onChange: (val: number | string) => void;
+    onChange: (item: DropdownItem) => void;
     placeholder?: string;
     className?: string;
-    // processar: (valor: string) => Itens[];
-    processar: (valor: string, signal: AbortSignal) => Itens[] | Promise<Itens[]>;
+    processar: (valor: string, signal: AbortSignal) => DropdownItem[] | Promise<DropdownItem[]>;
     config?: { minTextoLength: number }
 };
 
-export default function InputWithDropdownFloatingFinal({
-    // itens,
+
+/**
+ * Input com dropdown e busca assíncrona usando Floating UI.
+ *
+ * Permite digitar um texto, buscar itens remotamente
+ * e selecionar um item da lista.
+ *
+ * @example
+ * ```tsx
+ * const [empresaId, setEmpresaId] = useState(null); 
+ * 
+ * // Função para buscar empresas (exemplo fictício)
+ * const buscarEmpresas = async (valor: string, signal: AbortSignal) => {
+ *   const res = await fetch(`/api/empresas?q=${valor}`, { signal });
+ *   return res.json();
+ * };
+ *
+ * <InputWithDropdown
+ *   value={empresaId}
+ *   onChange={(item) => setEmpresaId(item.index)}
+ *   processar={buscarEmpresas}
+ *   placeholder="Buscar empresa..."
+ *   config={{ minTextoLength: 3 }}
+ * />
+ * ```
+ */
+
+export default function InputWithDropdown({
     value,
     onChange,
     placeholder = "Digite para pesquisar...",
@@ -41,7 +69,7 @@ export default function InputWithDropdownFloatingFinal({
 }: Props) {
     const [open, setOpen] = useState(false);
     const [IsLoading, setIsLoading] = useState(false);
-    const [itens, setItens] = useState<Itens[]>([]);
+    const [itens, setItens] = useState<DropdownItem[]>([]);
     const [search, setSearch] = useState("");
     const [highlight, setHighlight] = useState<number>(-1);
     const controllerRef = useRef<AbortController | null>(null);
@@ -79,8 +107,8 @@ export default function InputWithDropdownFloatingFinal({
         normalize(e.texto).includes(normalize(search))
     );
 
-    function selectItem(item: Itens) {
-        onChange(item.index);
+    function selectItem(item: DropdownItem) {
+        onChange(item);
         setSearch(item.texto);
         setOpen(false);
         setHighlight(-1);
@@ -88,8 +116,11 @@ export default function InputWithDropdownFloatingFinal({
     }
 
     const handleInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearch(e.target.value);
+        
+        setSearch(normalizeValue(e.target.value));
+        
         if (e.target.value.length < config.minTextoLength) {
+            setIsLoading(false);
             setOpen(false);
             return false
         }
@@ -100,12 +131,12 @@ export default function InputWithDropdownFloatingFinal({
         controllerRef.current?.abort();
 
         // cria nova classe AbortController
-        const controller = new AbortController();   
+        const controller = new AbortController();
         controllerRef.current = controller;
-        
+
         const itens = await processar(e.target.value, controller.signal);
-        await new Promise(resolve => setTimeout(resolve, 5000));
-                
+        // await new Promise(resolve => setTimeout(resolve, 5000));
+
         setIsLoading(false);
 
         setItens(itens);
@@ -185,10 +216,10 @@ export default function InputWithDropdownFloatingFinal({
         <div className={className}>
             {/* <label className="block text-sm font-medium text-gray-700 mb-1">Labek</label> */}
 
-
             <div className="relative">
-
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
+                    className="pl-8"
                     ref={(el) => {
                         refs.setReference(el);
                         inputRef.current = el;
@@ -269,8 +300,7 @@ export default function InputWithDropdownFloatingFinal({
                                                 // NÃO preventDefault aqui — isso pode impedir drag da scrollbar.
                                                 e.stopPropagation();
                                             }}
-                                            className={`cursor-pointer px-3 py-2 text-sm ${isHighlighted ? "bg-sky-500 text-white" : "text-gray-700"
-                                                }`}
+                                            className={`cursor-pointer px-3 py-2 text-sm ${isHighlighted ? "bg-sky-500 text-white" : "text-gray-700"}`}
                                         >
                                             {item.texto}
                                             {String(item.index) === String(value) && (
