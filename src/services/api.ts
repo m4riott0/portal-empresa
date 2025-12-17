@@ -9,7 +9,6 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
    validateStatus: (status) => {
-    console.log(status)
     return status >= 200 && status < 300; // qualquer coisa fora de 2xx vai para o catch
   }
 });

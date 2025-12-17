@@ -4,13 +4,14 @@ export interface Usuario {
     cd_conta: number,
     nm_usuario: string,
     nm_operador: string,
-    sn_ativo: "S" | "N",
     cd_tipo_perfil: number,
     ds_tipo_perfil: string,
     cd_plano: number,
     ds_empresa: string,
     cd_empresa_mv: number,
     ds_email: string
+    sn_ativo: "S" | "N",
+    sn_troca_senha: "S" | "N"
 }
 
 export interface Empresa {
