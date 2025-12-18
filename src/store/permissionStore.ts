@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { Permission, ALL_PERMISSIONS } from "../_enuns/Permission";
+import { useProfile } from "@/hooks/use-profile";
+import { useProfileStore } from "./profileStore";
 // import { PermissionService } from "../services/permissionService";
 
 type PermissionState = {
@@ -7,7 +9,7 @@ type PermissionState = {
     loading: boolean;
     error: string | null;
 
-    loadPermissions: (profile: string) => Promise<void>;
+    loadPermissions: () => Promise<void>;
     hasPermission: (perm: Permission) => boolean;
 };
 
@@ -16,9 +18,18 @@ export const usePermissionStore = create<PermissionState>((set, get) => ({
     loading: false,
     error: null,
 
-    loadPermissions: async (profile) => {
+    loadPermissions: async () => {
         try {
+
             set({ loading: true, error: null });
+
+            const profileState = useProfileStore.getState();
+            const id = profileState.getProfileId();
+
+            if (!id) {
+                set({ loading: false, error: 'Usuário sem perfil'  });
+                return;
+            }
 
             //TODO Terminar de desenvolver para após integrar com a API
             // const apiPermissions = await PermissionService.getByProfile(profile);
@@ -48,7 +59,6 @@ export const usePermissionStore = create<PermissionState>((set, get) => ({
             set({ loading: false });
         }
     },
-
     hasPermission: (perm: Permission) => {
         return get().permissions.includes(perm);
     },

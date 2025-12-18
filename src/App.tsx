@@ -45,8 +45,7 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 
 const App = () => {
   const { isAuthenticated } = useAuthStore();
-  console.log("teste");
-  console.log("isAuthenticated:", isAuthenticated);
+  
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

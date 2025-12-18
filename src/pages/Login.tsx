@@ -46,11 +46,6 @@ export default function Login() {
           description: "Redirecionando para o dashboard...",
         });
 
-
-        //TODO Temporiamente colocarei aqui. porem futuramente deve ser tratado em outro local - hook de login
-
-        await usePermissionStore.getState().loadPermissions('ADMINISTRADOR');
-
         setTimeout(() => navigate("/dashboard"), 500);
       } else {
         toast({

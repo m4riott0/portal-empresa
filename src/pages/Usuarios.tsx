@@ -19,6 +19,10 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
+import { usePermission } from "@/hooks/use-permission";
+import { Permission } from "@/_enuns/Permission";
+import { useProfile } from "@/hooks/use-profile";
+import { Profile } from "@/_enuns/Profile";
 
 // PERFILS QUE ACESSARA ESTA TELA:    ADMINISTRADOR | COMERCIAL | ADMINISTRADOR DE RECURSOS HUMANOS - RH
 
@@ -30,6 +34,9 @@ import { z } from "zod";
 export default function Usuarios() {
 
     const navigate = useNavigate();
+
+    const {can} = usePermission();
+    const {is} = useProfile();
 
     const [perfils, setPerfils] = useState<"ADMINISTRADOR" | "COMERCIAL" | "ADMINISTRADOR DE RECURSOS HUMANOS - RH">("ADMINISTRADOR");
 
@@ -171,13 +178,25 @@ export default function Usuarios() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 pt-5">
-                    <Button className="btn-medical"
-                        onClick={() => {
-                            setUsuario(null);
-                            setOpenModal("usuario");
-                        }}>
-                        <CirclePlus className="mr-2 h-4 w-4" /> Novo Usuário
-                    </Button>
+
+                    { can(Permission.EDITAR_USUARIO) && (
+                        <Button className="btn-medical"
+                            onClick={() => {
+                                setUsuario(null);
+                                setOpenModal("usuario");
+                            }}>
+                            <CirclePlus className="mr-2 h-4 w-4" /> Novo Usuário
+                        </Button>
+                    )}
+                    { is(Profile.CADASTRO) && (
+                        <Button className="btn-medical"
+                            onClick={() => {
+                                setUsuario(null);
+                                setOpenModal("usuario");
+                            }}>
+                            <CirclePlus className="mr-2 h-4 w-4" /> Novo Usuário
+                        </Button>
+                    )}
 
                     <div className="flex flex-col sm:flex-row gap-4 mb-4 sm:items-end">
                         <div className="flex flex-col flex-1 max-w-sm">

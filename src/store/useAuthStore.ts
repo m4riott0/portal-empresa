@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { usePermissionStore } from './permissionStore';
+import { useProfileStore } from './profileStore';
 
 export interface Company {
   id: string;
@@ -41,6 +43,17 @@ export const useAuthStore = create<AuthState>()(
       login: async (companyCode: string, username: string, password: string) => {
         // Simulate API call
         await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        
+        //TODO Temporiamente colocarei aqui. porem futuramente deve ser tratado em outro local - hook de login
+
+        const isOkProfile = useProfileStore.getState().setProfile({id: 1, perfil: 'FHJFHJ'});
+        if (!isOkProfile) {
+          console.error('Login bloqueado: perfil inválido');
+          return false;
+        }
+
+        await usePermissionStore.getState().loadPermissions();
 
         if (username === 'admin' && password === '123456' && companyCode === '123') {
           const userData: User = {
