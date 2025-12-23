@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { useAuthStore } from "@/store/useAuthStore";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from "@/components/ui/table";import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowLeft, FileText, FileSpreadsheet, FileDigit, Receipt, Download, EllipsisVertical, ArrowUpDown } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
 
 // --- DADOS MOCKADOS ---
 // Em um ambiente real, estes dados viriam da API.
@@ -50,7 +50,7 @@ type NotaFiscal = typeof mockNotasFiscais[0];
 type SortableColumns = keyof NotaFiscal;
 
 export default function DocsFinaceiros() {
-  const { user, selectedCompany, selectCompany } = useAuthStore();
+  const { user, selectedCompany, selectCompany } = useAuth();
   const navigate = useNavigate();
   const [sortColumn, setSortColumn] = useState<SortableColumns>('vencimento');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -61,7 +61,7 @@ export default function DocsFinaceiros() {
 
   const handleCompanyChange = (companyId: string) => {
     if (!companyId) return selectCompany(null);
-    const company = user?.companies.find(c => c.id === companyId);
+    const company = user?.empresas.find(c => c.cd_empresa.toString() === companyId);
     if (company) selectCompany(company);
   };
 
@@ -92,20 +92,20 @@ export default function DocsFinaceiros() {
           <div>
             {selectedCompany ? (
               <>
-                <CardTitle className="text-2xl font-bold">{selectedCompany.id} – {selectedCompany.razaoSocial || selectedCompany.name}</CardTitle>
+                <CardTitle className="text-2xl font-bold">{selectedCompany.cd_empresa} – {selectedCompany.ds_razao_social || selectedCompany.nm_fantasia}</CardTitle>
                 <CardDescription>Relação das Notas, Boletos e Relatórios</CardDescription>
               </>
             ) : (
               <CardTitle>Documentos Financeiros</CardTitle>
             )}
           </div>
-          {user && user.companies.length > 0 && (
+          {user && user.empresas.length > 0 && (
             <div className="w-full sm:w-80">
-              <Select onValueChange={handleCompanyChange} value={selectedCompany?.id || ''}>
+              <Select onValueChange={handleCompanyChange} value={selectedCompany?.cd_empresa.toString() || ''}>
                 <SelectTrigger><SelectValue placeholder="Selecione uma empresa para ver os detalhes..." /></SelectTrigger>
                 <SelectContent>
                   {user?.profile === 'Admin' && <SelectItem value="">Ver todas as empresas</SelectItem>}
-                  {user.companies.map(company => (<SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>))}
+                  {user.empresas.map(company => (<SelectItem key={company.cd_empresa} value={company.cd_empresa.toString()}>{company.ds_razao_social}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>

@@ -44,17 +44,18 @@ export const useAuthStore = create<AuthState>()(
         // Simulate API call
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        
+        let retorno = true
         //TODO Temporiamente colocarei aqui. porem futuramente deve ser tratado em outro local - hook de login
 
-        const isOkProfile = useProfileStore.getState().setProfile({id: 1, perfil: 'FHJFHJ'});
-        if (!isOkProfile) {
-          console.error('Login bloqueado: perfil inválido');
-          return false;
-        }
+        // const isOkProfile = useProfileStore.getState().setProfile({ id: 1, perfil: 'COMERCIAL' });
+        // if (!isOkProfile) {
+        //   return false;
+        // }
 
-        await usePermissionStore.getState().loadPermissions();
-
+        // await usePermissionStore.getState().loadPermissions()
+        //   .catch(() => { retorno = false });
+        // console.log(retorno)
+        // return retorno;
         if (username === 'admin' && password === '123456' && companyCode === '123') {
           const userData: User = {
             id: '1',
@@ -85,7 +86,6 @@ export const useAuthStore = create<AuthState>()(
           });
           return true;
         }
-        return false;
       },
       logout: () => {
         set({ user: null, isAuthenticated: false, selectedCompany: null });

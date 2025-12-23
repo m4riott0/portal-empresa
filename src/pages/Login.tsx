@@ -5,11 +5,11 @@ import { Building, User, Lock, ArrowRight, LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuthStore } from "@/store/useAuthStore";
 import { useToast } from "@/hooks/use-toast";
 import LoginHero from "@/assets/login-hero.png";
 import Logo from "@/assets/bensaude.png";
 import { usePermissionStore } from "@/store/permissionStore";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Subcomponente para os inputs do formulário, promovendo reutilização e limpeza do código.
 interface LoginInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -30,7 +30,7 @@ export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuthStore();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -38,31 +38,16 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
 
-    try {
-      const success = await login(companyCode, username, password);
-      if (success) {
-        toast({
-          title: "Login realizado com sucesso!",
-          description: "Redirecionando para o dashboard...",
-        });
-
-        setTimeout(() => navigate("/dashboard"), 500);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Erro no login",
-          description: "Credenciais inválidas. Tente novamente.",
-        });
-      }
-    } catch (error) {
+    await login(companyCode, username, password).then(() => {
       toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Ocorreu um erro ao fazer login.",
+        title: "Login realizado com sucesso!",
+        description: "Redirecionando para o dashboard...",
       });
-    } finally {
+      navigate("/dashboard");
+
+    }).finally(() => {
       setIsLoading(false);
-    }
+    });
   };
 
   return (
@@ -144,7 +129,7 @@ export default function Login() {
               className="text-sm text-primary hover:text-primary-hover transition-colors block"
             >
               Esqueceu sua senha?
-            </Link>           
+            </Link>
 
           </form>
         </motion.div>
@@ -152,8 +137,8 @@ export default function Login() {
 
       {/* Right Side - Hero Section */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <img 
-          src={LoginHero} 
+        <img
+          src={LoginHero}
           alt="Profissionais de saúde da Bensaúde sorrindo"
           className="w-full h-full object-cover"
         />

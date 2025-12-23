@@ -2,11 +2,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
-import { useAuthStore } from "./store/useAuthStore";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+
 
 // Pages
 import Login from "./pages/Login";
@@ -18,13 +19,14 @@ import CopartPreFatura from "./pages/CopartPreFatura";
 import Documentos from "./pages/Documentos";
 import PermissaoPerfil from "./pages/PermissaoPerfil";
 import PasswordRecovery from "./pages/PasswordRecovery";
-import Empresas from "./pages/Empresas"; 
-import Usuarios from "./pages/Usuarios"; 
+import Empresas from "./pages/Empresas";
+import Usuarios from "./pages/Usuarios";
+import PrivateRoute from "./components/PrivateRoute";
 
 const queryClient = new QueryClient();
 
-function ProtectedLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+function ProtectedLayout() {
+  const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -33,10 +35,14 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen w-full bg-gradient-to-br from-muted/20 to-white">
       <Sidebar />
+
       <div className="flex-1 pl-64">
         <Header />
+
         <main className="pt-20 p-8">
-          <AnimatePresence mode="wait">{children}</AnimatePresence>
+          <AnimatePresence mode="wait">
+            <Outlet />
+          </AnimatePresence>
         </main>
       </div>
     </div>
@@ -44,109 +50,45 @@ function ProtectedLayout({ children }: { children: React.ReactNode }) {
 }
 
 const App = () => {
-  const { isAuthenticated } = useAuthStore();
-  
+  // const { isAuthenticated } = useAuth();
+  // 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route
-              path="/login"
-              element={
-                isAuthenticated ? (
-                  <Navigate to="/dashboard" replace />
-                ) : (
-                  <Login />
-                )
-              }
-            />
-            <Route
-              path="/"
-              element={
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              {/* <Route path="/" element={
                 <Navigate
                   to={isAuthenticated ? "/dashboard" : "/login"}
                   replace
                 />
               }
-            />
-            <Route
-              path="/recuperar-senha"
-              element={
-                  <PasswordRecovery />
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedLayout>
-                  <Dashboard />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/beneficiarios"
-              element={
-                <ProtectedLayout>
-                  <Beneficiarios />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/docs-financeiros"
-              element={
-                <ProtectedLayout>
-                  <DocsFinaceiros/>
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/copart-pre-fatura"
-              element={
-                <ProtectedLayout>
-                  <CopartPreFatura/>
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/docs"
-              element={
-                <ProtectedLayout>
-                  <Documentos/>
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/permissao_perfil"
-              element={
-                <ProtectedLayout>
-                  <PermissaoPerfil/>
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/empresas"
-              element={
-                <ProtectedLayout>
-                  <Empresas />
-                </ProtectedLayout>
-              }
-            />
-            <Route
-              path="/usuarios"
-              element={
-                <ProtectedLayout>
-                  <Usuarios />
-                </ProtectedLayout>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+              /> */}
+              <Route path="/recuperar-senha" element={<PasswordRecovery />} />
+
+              {/* Protected Routes */}
+              <Route element={<PrivateRoute />}>
+                <Route element={<ProtectedLayout />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/beneficiarios" element={<Beneficiarios />} />
+                  <Route path="/docs-financeiros" element={<DocsFinaceiros />} />
+                  <Route path="/copart-pre-fatura" element={<CopartPreFatura />} />
+                  <Route path="/docs" element={<Documentos />} />
+                  <Route path="/permissao_perfil" element={<PermissaoPerfil />} />
+                  <Route path="/empresas" element={<Empresas />} />
+                  <Route path="/usuarios" element={<Usuarios />} />
+                </Route>
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
-    </QueryClientProvider>
+    </QueryClientProvider >
   );
 };
 

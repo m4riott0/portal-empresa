@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { Permission, ALL_PERMISSIONS } from "../_enuns/Permission";
 import { useProfile } from "@/hooks/use-profile";
 import { useProfileStore } from "./profileStore";
+import api from "@/services/api";
 // import { PermissionService } from "../services/permissionService";
 
 type PermissionState = {
@@ -20,45 +21,37 @@ export const usePermissionStore = create<PermissionState>((set, get) => ({
 
     loadPermissions: async () => {
         try {
-
             set({ loading: true, error: null });
 
             const profileState = useProfileStore.getState();
             const id = profileState.getProfileId();
 
             if (!id) {
-                set({ loading: false, error: 'Usuário sem perfil'  });
-                return;
+                throw new Error("Usuário sem perfil");
             }
 
-            //TODO Terminar de desenvolver para após integrar com a API
-            // const apiPermissions = await PermissionService.getByProfile(profile);
-            // const response = await fetch(`/api/permissoes?perfil=${profile}`);
+            const response = await api.get(
+                `/Permissao/ListarPermissoesVinculadas?CdTipoPerfil=${id}&page=1&pageSize=0&SnAtivo=true`
+            );
 
-            // if (!response.ok) {
-            //     throw new Error("Erro ao buscar permissões do perfil");
-            // }
-            const dataTeste = [
-                {"status":true, "permission": "LISTAR_PERMISSOES"},
-                {"status":false, "permission": "EDITAR_USUARIO"},
-                {"status":true, "permission": "DELETAR_USUARIO"},
-            ]
+            const permissions:[] = response.data.data.map(
+                (item: any) => item.ds_permissao
+            );
 
-            const dataTesteFilter = dataTeste.filter(item => item.status).map(item => item.permission);
+            // Verifica todas as permissões do perfil rebecida está no enum
+            const todosExistem = permissions.every(item => ALL_PERMISSIONS.includes(item))
 
-            // Filtra apenas permissões válidas do enum
-            // const validPerms = apiPermissions.filter((p) =>
-            const validPerms = dataTesteFilter.filter((p) =>
-                ALL_PERMISSIONS.includes(p as Permission)
-            ) as Permission[];
+            if (!todosExistem) {
+                throw new Error("Permissões não encontrada");
+            }
 
-            set({ permissions: validPerms });
-        } catch (err: any) {
-            set({ error: err.message ?? "Erro inesperado" });
-        } finally {
+            set({ permissions: permissions });         
+        } 
+        finally {
             set({ loading: false });
         }
     },
+
     hasPermission: (perm: Permission) => {
         return get().permissions.includes(perm);
     },

@@ -1,11 +1,11 @@
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useAuthStore } from "@/store/useAuthStore";
 import { NavLink, useNavigate } from "react-router-dom";
 import Logo from "@/assets/bensaude.png";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function Header() {
-  const { logout } = useAuthStore();
+  const { logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {

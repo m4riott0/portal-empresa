@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuthStore, Company } from "@/store/useAuthStore";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter as UiTableFooter, TableCaption } from "@/components/ui/table";
 import { ArrowLeft, Download, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useAuth } from "@/contexts/AuthContext";
+import { Empresa } from "@/types";
 
 // --- DADOS MOCKADOS PARA TELA 2 ---
 const mockBeneficiariosCopart = [
@@ -22,19 +23,19 @@ type BeneficiarioCopart = typeof mockBeneficiariosCopart[0];
 /**
  * Tela 1: Seleção de Empresa
  */
-function TelaSelecaoEmpresa({ onSelectEmpresa, onVoltar }: { onSelectEmpresa: (empresa: Company) => void; onVoltar: () => void }) {
-  const { user } = useAuthStore();
+function TelaSelecaoEmpresa({ onSelectEmpresa, onVoltar }: { onSelectEmpresa: (empresa: Empresa) => void; onVoltar: () => void }) {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
  
   const filteredCompanies = useMemo(() => {
-    if (!user?.companies) return [];
+    if (!user?.empresas) return [];
     const term = searchTerm.toLowerCase();
-    return user.companies.filter(
+    return user.empresas.filter(
       (company) =>
-        company.name.toLowerCase().includes(term) ||
-        company.cnpj?.replace(/\D/g, "").includes(term.replace(/\D/g, ""))
+        company.ds_razao_social.toLowerCase().includes(term) ||
+        company.nr_cnpj?.replace(/\D/g, "").includes(term.replace(/\D/g, ""))
     );
-  }, [user?.companies, searchTerm]);
+  }, [user?.empresas, searchTerm]);
 
   return (
     <Card>
@@ -63,10 +64,10 @@ function TelaSelecaoEmpresa({ onSelectEmpresa, onVoltar }: { onSelectEmpresa: (e
             <TableBody>
               {filteredCompanies.length > 0 ? (
                 filteredCompanies.map((company) => (
-                  <TableRow key={company.id} onClick={() => onSelectEmpresa(company)} className="cursor-pointer hover:bg-muted/50">
-                    <TableCell className="font-medium">{company.name}</TableCell>
+                  <TableRow key={company.cd_empresa} onClick={() => onSelectEmpresa(company)} className="cursor-pointer hover:bg-muted/50">
+                    <TableCell className="font-medium">{company.ds_razao_social}</TableCell>
                     <TableCell className="text-right text-muted-foreground">
-                      {company.cnpj || 'Não informado'}
+                      {company.nr_cnpj || 'Não informado'}
                     </TableCell>
                   </TableRow>
                 ))
@@ -93,7 +94,7 @@ function TelaSelecaoEmpresa({ onSelectEmpresa, onVoltar }: { onSelectEmpresa: (e
 /**
  * Tela 2: Detalhes da Coparticipação
  */
-function TelaDetalhesCoparticipacao({ empresa, onVoltar }: { empresa: Company; onVoltar: () => void; }) {
+function TelaDetalhesCoparticipacao({ empresa, onVoltar }: { empresa: Empresa; onVoltar: () => void; }) {
   const [searchTerm, setSearchTerm] = useState("");
   const dataCalculo = useMemo(() => new Date(), []);
 
@@ -124,7 +125,7 @@ function TelaDetalhesCoparticipacao({ empresa, onVoltar }: { empresa: Company; o
     const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `coparticipacao_${empresa.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `coparticipacao_${empresa.ds_razao_social.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -133,7 +134,7 @@ function TelaDetalhesCoparticipacao({ empresa, onVoltar }: { empresa: Company; o
   return (
     <Card>
       <CardHeader>
-        <p className="text-sm font-semibold text-primary">{empresa.name}</p>
+        <p className="text-sm font-semibold text-primary">{empresa.ds_razao_social}</p>
         <CardTitle>Detalhes da Coparticipação</CardTitle>
         <CardDescription>
           Valor de Coparticipação a ser faturado calculado em {dataCalculo.toLocaleDateString('pt-BR')} às {dataCalculo.toLocaleTimeString('pt-BR')}
@@ -219,17 +220,17 @@ function TelaDetalhesCoparticipacao({ empresa, onVoltar }: { empresa: Company; o
  * Componente Principal que gerencia o estado entre as telas
  */
 export default function CopartPreFatura() {
-  const { user, selectedCompany, selectCompany } = useAuthStore();
+  const { user, selectedCompany, selectCompany } = useAuth();
   const navigate = useNavigate();
 
   // Estado inicial baseado no perfil do usuário
-  const initialEmpresa = (user?.profile !== 'cadastro' && user?.companies?.length === 1)
-    ? user.companies[0]
+  const initialEmpresa = (user?.profile !== 'cadastro' && user?.empresas?.length === 1)
+    ? user.empresas[0]
     : null;
   const [tela, setTela] = useState(initialEmpresa ? 'detalhes' : 'lista');
-  const [empresaSelecionada, setEmpresaSelecionada] = useState<Company | null>(initialEmpresa);
+  const [empresaSelecionada, setEmpresaSelecionada] = useState<Empresa | null>(initialEmpresa);
 
-  const handleSelectEmpresa = (empresa: Company) => {
+  const handleSelectEmpresa = (empresa: Empresa) => {
     selectCompany(empresa);
     setEmpresaSelecionada(empresa);
     setTela('detalhes');

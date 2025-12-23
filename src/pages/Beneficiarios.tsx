@@ -8,7 +8,6 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Company, useAuthStore } from "@/store/useAuthStore";
 import {
   Card,
   CardContent,
@@ -85,6 +84,7 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
+import { useAuth } from "@/contexts/AuthContext";
 
 // --- TIPOS E SCHEMAS ---
 type Beneficiario = {
@@ -306,7 +306,7 @@ type ModalState =
   | null;
 
 export default function Beneficiarios() {
-  const { user, selectedCompany, selectCompany } = useAuthStore();
+  const { user, selectedCompany, selectCompany } = useAuth();
   const { toast } = useToast();
   const [beneficiarios, setBeneficiarios] = useState<Beneficiario[]>([]);
   const [loading, setLoading] = useState(false);
@@ -330,7 +330,7 @@ export default function Beneficiarios() {
     try {
       if (selectedCompany) {
         await new Promise((resolve) => setTimeout(resolve, 500));
-        setBeneficiarios(mockBeneficiarios.filter((b) => b.cnpj === selectedCompany.cnpj));
+        setBeneficiarios(mockBeneficiarios.filter((b) => b.cnpj === selectedCompany.nr_cnpj));
       } else if (user?.profile === "cadastro") {
         await new Promise((resolve) => setTimeout(resolve, 500));
         setBeneficiarios(mockBeneficiarios);
@@ -347,10 +347,10 @@ export default function Beneficiarios() {
   useEffect(() => {
     if (user?.profile === "cadastro" && selectedCompany) {
       selectCompany(null);
-    } else if (user?.companies.length === 1) {
-      selectCompany(user.companies[0]);
+    } else if (user?.empresas.length === 1) {
+      selectCompany(user.empresas[0]);
     }
-  }, [user?.profile, selectedCompany, selectCompany, user?.companies]);
+  }, [user?.profile, selectedCompany, selectCompany, user?.empresas]);
 
   useEffect(() => {
     fetchBeneficiarios();
@@ -399,7 +399,7 @@ export default function Beneficiarios() {
   // --- HANDLERS DE EVENTOS ---
   const handleCompanyChange = (companyId: string) => {
     if (!companyId) return selectCompany(null);
-    const company = user?.companies.find((c) => c.id === companyId);
+    const company = user?.empresas.find((c) => c.cd_empresa.toString() === companyId);
     if (company) selectCompany(company);
   };
 
@@ -526,8 +526,8 @@ export default function Beneficiarios() {
           statusUsuario: "A Cadastrar",
           statusDocumento: "Suspenso",
           dependentes: 0,
-          cnpj: selectedCompany.cnpj,
-          nomeEmpresa: selectedCompany.name,
+          cnpj: selectedCompany.nr_cnpj,
+          nomeEmpresa: selectedCompany.ds_razao_social,
         });
       }
       setBeneficiarios((prev) => [...prev, ...newBeneficiarios]);
@@ -563,8 +563,8 @@ export default function Beneficiarios() {
         statusDocumento: "Suspenso",
         dependentes: [],
         plano: { adesao: true, inicioVigencia: undefined, cobertura: undefined },
-        cnpj: selectedCompany?.cnpj || "",
-        nomeEmpresa: selectedCompany?.name || "",
+        cnpj: selectedCompany?.nr_cnpj || "",
+        nomeEmpresa: selectedCompany?.ds_razao_social || "",
       },
       defaultTab: "titular",
     });
@@ -704,16 +704,16 @@ export default function Beneficiarios() {
             {user?.profile === "cadastro" && (
               <Select
                 onValueChange={handleCompanyChange}
-                value={selectedCompany?.id || ""}
+                value={selectedCompany?.cd_empresa.toString() || ""}
               >
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Todas as Empresas" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Todas as Empresas</SelectItem>
-                  {user?.companies.map((company) => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
+                  {user?.empresas.map((company) => (
+                    <SelectItem key={company.cd_empresa} value={company.cd_empresa.toString()}>
+                      {company.ds_razao_social}
                     </SelectItem>
                   ))}
                 </SelectContent>

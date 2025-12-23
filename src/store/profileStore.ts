@@ -10,7 +10,7 @@ type ProfileStore = {
     profile: UserProfile | null;
     loading: boolean;
 
-    setProfile: (profile: UserProfile) => boolean;
+    setProfile: (profile: UserProfile) => void;
     isProfile: (perfil: Profile | Profile[]) => boolean;
     getProfileId: () => number | null;
 };
@@ -20,16 +20,16 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     loading: true,
 
     setProfile: (profile) => {
+
+        // Verificando se o perfil recebido é um dos perfils que está no enuns
         const isValidPerfil = ALL_PROFILES.includes(profile.perfil as Profile);
 
         if (!isValidPerfil) {
-            console.error("Perfil inválido:", profile.perfil);
             set({ profile: null, loading: false });
-            return false;
+            throw new Error("Perfil inválido: " + profile.perfil);
         }
 
         set({ profile, loading: false });
-        return true;
     },
 
     isProfile: (perfil) => {

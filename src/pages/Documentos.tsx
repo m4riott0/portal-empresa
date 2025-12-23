@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useAuthStore } from "@/store/useAuthStore";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -28,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 // --- TIPOS E DADOS MOCKADOS (REUTILIZANDO E ADAPTANDO DE BENEFICIARIOS.TSX) ---
 
@@ -115,7 +115,7 @@ const getCompanyDocStatus = (companyCnpj: string): DocumentoStatus => {
  * Hook customizado para gerenciar a lógica de busca e filtragem de beneficiários.
  */
 function useBeneficiariosData() {
-  const { user, selectedCompany, selectCompany } = useAuthStore();
+  const { user, selectedCompany, selectCompany } = useAuth();
   const [beneficiarios, setBeneficiarios] = useState<Beneficiario[]>([]);
   const [selectedBeneficiario, setSelectedBeneficiario] = useState<Beneficiario | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -123,19 +123,19 @@ function useBeneficiariosData() {
 
   useEffect(() => {
     // Auto-seleciona a empresa se o usuário não for 'cadastro' e tiver apenas uma.
-    if (user?.profile !== 'cadastro' && user?.companies.length === 1) {
-      selectCompany(user.companies[0]);
+    if (user?.profile !== 'cadastro' && user?.empresas.length === 1) {
+      selectCompany(user.empresas[0]);
     }
   }, [user, selectCompany]);
 
   useEffect(() => {
     // Lógica para carregar os beneficiários com base na empresa selecionada ou no perfil.
     if (selectedCompany) {
-      const data = mockBeneficiarios.filter(b => b.cnpj === selectedCompany.cnpj);
+      const data = mockBeneficiarios.filter(b => b.cnpj === selectedCompany.nr_cnpj);
       setBeneficiarios(data);
     } else if (user?.profile === 'cadastro') {
       // Perfil 'cadastro' sem empresa selecionada: mostra todos.
-      const companyNameMap = new Map(mockAllCompanies.map(c => [c.cnpj, c.name]));
+      const companyNameMap = new Map(mockAllCompanies.map(c => [c.nr_cnpj, c.ds_razao_social]));
       const allData = mockBeneficiarios.map(b => ({ ...b, nomeEmpresa: companyNameMap.get(b.cnpj) || 'N/A' }));
       setBeneficiarios(allData);
     } else {
@@ -184,7 +184,7 @@ export default function Documentos() {
 
   // Para usuários que não são 'cadastro' e têm mais de uma empresa,
   // a tela de seleção é a primeira coisa a ser mostrada.
-  if (user && (user.profile === 'cadastro' || user.companies.length > 1) && !selectedCompany) {
+  if (user && (user.profile === 'cadastro' || user.empresas.length > 1) && !selectedCompany) {
     return <TelaSelecaoEmpresa onSelectEmpresa={selectCompany} onVoltar={() => navigate(-1)} />;
   }
 
@@ -208,11 +208,11 @@ export default function Documentos() {
             <CardDescription>Selecione uma empresa para filtrar a lista de beneficiários ou veja todos.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Select onValueChange={(cnpj) => selectCompany(mockAllCompanies.find(c => c.cnpj === cnpj) || null)} value={selectedCompany?.cnpj || ''}>
+            <Select onValueChange={(cnpj) => selectCompany(mockAllCompanies.find(c => c.nr_cnpj === cnpj) || null)} value={selectedCompany?.nr_cnpj || ''}>
               <SelectTrigger className="w-full sm:w-1/2"><SelectValue placeholder="Visualizando todas as empresas..." /></SelectTrigger>
               <SelectContent>
                 <SelectItem value=''>Ver todas as empresas</SelectItem>
-                {mockAllCompanies.map(c => <SelectItem key={c.id} value={c.cnpj}>{c.name}</SelectItem>)}
+                {mockAllCompanies.map(c => <SelectItem key={c.cd_empresa} value={c.nr_cnpj}>{c.ds_razao_social}</SelectItem>)}
               </SelectContent>
             </Select>
           </CardContent>
@@ -225,7 +225,7 @@ export default function Documentos() {
           <div>
             <CardTitle className="text-2xl">Gerenciamento de Documentos</CardTitle>
             <CardDescription>
-              {isShowingAll ? "Visão consolidada de todos os beneficiários." : `Beneficiários da empresa: ${selectedCompany?.name}`}
+              {isShowingAll ? "Visão consolidada de todos os beneficiários." : `Beneficiários da empresa: ${selectedCompany?.ds_razao_social}`}
             </CardDescription>
           </div>
         </div>
@@ -333,14 +333,14 @@ export default function Documentos() {
 // --- TELA DE SELEÇÃO DE EMPRESA (TELA 1) ---
 
 // Mock de todas as empresas para o perfil de cadastro
-const mockAllCompanies = [
-  { id: '1', name: 'Empresa A', cnpj: '11.222.333/0001-44' },
-  { id: '2', name: 'Empresa B', cnpj: '44.555.666/0001-77' },
-  { id: '3', name: 'Empresa C', cnpj: '77.888.999/0001-00' },
+const mockAllCompanies = [    
+  { cd_empresa: 1, ds_razao_social: 'Empresa A', nm_fantasia:"Empresa A", nr_cnpj: '11.222.333/0001-44', sn_ativo: "S", cd_plano: 101, cd_empresa_mv: 1, cd_empresa_pai: null },
+  { cd_empresa: 2, ds_razao_social: 'Empresa B', nm_fantasia:"Empresa B", nr_cnpj: '44.555.666/0001-77', sn_ativo: "S", cd_plano: 102, cd_empresa_mv: 2, cd_empresa_pai: null },
+  { cd_empresa: 3, ds_razao_social: 'Empresa C', nm_fantasia:"Empresa C", nr_cnpj: '77.888.999/0001-00', sn_ativo: "S", cd_plano: 102, cd_empresa_mv: 3, cd_empresa_pai: null },
 ];
 
 function TelaSelecaoEmpresa({ onSelectEmpresa, onVoltar }: { onSelectEmpresa: (empresa: any) => void; onVoltar: () => void; }) {
-  const { user } = useAuthStore();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [allCompanies, setAllCompanies] = useState<(any & { docStatus: DocumentoStatus })[]>([]);
   const navigate = useNavigate();
@@ -351,19 +351,19 @@ function TelaSelecaoEmpresa({ onSelectEmpresa, onVoltar }: { onSelectEmpresa: (e
       // TODO: Substituir por chamada de API real que busca TODAS as empresas
       const companiesWithStatus = mockAllCompanies.map(company => ({
         ...company,
-        docStatus: getCompanyDocStatus(company.cnpj)
+        docStatus: getCompanyDocStatus(company.nr_cnpj)
       }));
       setAllCompanies(companiesWithStatus);
-    } else if (user?.companies) {
-      const userCompaniesWithStatus = user.companies.map(company => ({
+    } else if (user?.empresas) {
+      const userCompaniesWithStatus = user.empresas.map(company => ({
         ...company,
-        docStatus: getCompanyDocStatus(company.cnpj)
+        docStatus: getCompanyDocStatus(company.nr_cnpj)
       }));
       setAllCompanies(userCompaniesWithStatus);
     }
   }, [user]);
 
-  const companiesToShow = user?.profile === 'cadastro' ? allCompanies : allCompanies.filter(c => user?.companies.some(uc => uc.id === c.id));
+  const companiesToShow = user?.profile === 'cadastro' ? allCompanies : allCompanies.filter(c => user?.empresas.some(uc => uc.cd_empresa === c.id));
 
   const filteredCompanies = useMemo(() => {
     const term = searchTerm.toLowerCase();

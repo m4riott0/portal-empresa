@@ -1,4 +1,15 @@
 
+export interface Login {
+    cd_conta: number,
+    nm_usuario: string,
+    nm_operador: string,
+    cd_tipo_perfil: number,
+    cd_plano: number,
+    ds_email: string,
+    sn_troca_senha: string,
+    token: string,
+    cd_sessao: number
+}
 
 export interface Usuario {
     cd_conta: number,
@@ -22,5 +33,5 @@ export interface Empresa {
     sn_ativo: string,
     cd_plano: number,
     cd_empresa_mv: number,
-    cd_empresa_pai: number
+    cd_empresa_pai: number|null
 }

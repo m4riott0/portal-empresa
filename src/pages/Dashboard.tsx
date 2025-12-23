@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
-import { Company, useAuthStore } from "@/store/useAuthStore";
 import { Building, Mail, Globe, FileText, WalletCards, Briefcase, LucideIcon, Files } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface QuickAccessLinkProps {
   to: string;
@@ -19,10 +19,10 @@ const QuickAccessLink = ({ to, icon: Icon, title, description }: QuickAccessLink
 );
 
 export default function Dashboard() {
-  const { user, selectedCompany, selectCompany } = useAuthStore();
+  const { user, selectedCompany, selectCompany } = useAuth();
 
   const handleCompanyChange = (companyId: string) => {
-    const company = user?.companies.find(c => c.id === companyId);
+    const company = user?.empresas.find(c => c.cd_empresa.toString() === companyId);
     if (company) {
       selectCompany(company);
     }
@@ -30,7 +30,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {user && user.companies.length > 0 && (
+      {user && user.empresas.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -40,9 +40,9 @@ export default function Dashboard() {
             <CardDescription>Escolha a empresa para visualizar os dados.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Select onValueChange={handleCompanyChange} value={selectedCompany?.id}>
+            <Select onValueChange={handleCompanyChange} value={selectedCompany?.cd_empresa.toString()}>
               <SelectTrigger className="w-full md:w-1/2 lg:w-1/3"><SelectValue placeholder="Selecione uma empresa..." /></SelectTrigger>
-              <SelectContent>{user.companies.map(company => (<SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>))}</SelectContent>
+              <SelectContent>{user.empresas.map(company => (<SelectItem key={company.cd_empresa} value={company.cd_empresa.toString()}>{company.ds_razao_social}</SelectItem>))}</SelectContent>
             </Select>
           </CardContent>
         </Card>
@@ -61,17 +61,17 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6 text-sm -mt-2">
-                <div className="space-y-1"><dt className="font-medium text-muted-foreground">Razão Social</dt><dd className="font-semibold text-foreground">{selectedCompany.razaoSocial || 'Não informado'}</dd></div>
-                <div className="space-y-1"><dt className="font-medium text-muted-foreground">Logradouro</dt><dd className="text-foreground">{selectedCompany.logradouro || 'Não informado'}</dd></div>
-                <div className="space-y-1"><dt className="font-medium text-muted-foreground">Complemento</dt><dd className="text-foreground">{selectedCompany.complemento || 'Não informado'}</dd></div>
-                <div className="space-y-1"><dt className="font-medium text-muted-foreground">Bairro</dt><dd className="text-foreground">{selectedCompany.bairro || 'Não informado'}</dd></div>
-                <div className="space-y-1"><dt className="font-medium text-muted-foreground">Cidade</dt><dd className="text-foreground">{selectedCompany.cidade || 'Não informado'}</dd></div>
-                {selectedCompany.email && (
+                <div className="space-y-1"><dt className="font-medium text-muted-foreground">Razão Social</dt><dd className="font-semibold text-foreground">{selectedCompany.ds_razao_social || 'Não informado'}</dd></div>
+                {/* <div className="space-y-1"><dt className="font-medium text-muted-foreground">Logradouro</dt><dd className="text-foreground">{selectedCompany.logradouro || 'Não informado'}</dd></div> */}
+                {/* <div className="space-y-1"><dt className="font-medium text-muted-foreground">Complemento</dt><dd className="text-foreground">{selectedCompany.complemento || 'Não informado'}</dd></div> */}
+                {/* <div className="space-y-1"><dt className="font-medium text-muted-foreground">Bairro</dt><dd className="text-foreground">{selectedCompany.bairro || 'Não informado'}</dd></div> */}
+                {/* <div className="space-y-1"><dt className="font-medium text-muted-foreground">Cidade</dt><dd className="text-foreground">{selectedCompany.cidade || 'Não informado'}</dd></div> */}
+                {/* {selectedCompany.email && (
                   <div className="space-y-1"><dt className="font-medium text-muted-foreground">E-mail</dt><dd><a href={`mailto:${selectedCompany.email}`} className="flex items-center gap-2 text-primary hover:underline"><Mail className="h-4 w-4" />{selectedCompany.email}</a></dd></div>
-                )}
-                {selectedCompany.site && (
+                )} */}
+                {/* {selectedCompany.site && (
                   <div className="space-y-1"><dt className="font-medium text-muted-foreground">Site</dt><dd><a href={`https://${selectedCompany.site}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-primary hover:underline"><Globe className="h-4 w-4" />{selectedCompany.site}</a></dd></div>
-                )}
+                )} */}
               </dl>
             </CardContent>
           </Card>
@@ -86,12 +86,12 @@ export default function Dashboard() {
               </ul>
             </CardContent>
             <CardFooter>
-              <p className="text-xs text-muted-foreground w-full text-center">Visualizando dados para a empresa: <span className="font-semibold text-foreground">{selectedCompany.name}</span></p>
+              <p className="text-xs text-muted-foreground w-full text-center">Visualizando dados para a empresa: <span className="font-semibold text-foreground">{selectedCompany.nm_fantasia}</span></p>
             </CardFooter>
           </Card>
         </>
       ) : (
-        user && user.companies.length > 0 && (
+        user && user.empresas.length > 0 && (
           <Card>
             <CardContent className="pt-6">
               <p className="text-center text-muted-foreground">Por favor, selecione uma empresa acima para visualizar seus dados e acessos rápidos.</p>
